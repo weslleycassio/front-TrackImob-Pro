@@ -3,6 +3,7 @@ import { PrivateRoute } from '../auth/PrivateRoute';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { RegisterPage } from '../pages/Register/RegisterPage';
 import { DashboardPage } from '../pages/Dashboard/DashboardPage';
+import { ImovelCreate } from '../pages/Imovel/ImovelCreate';
 
 export function AppRoutes() {
   const location = useLocation();
@@ -15,6 +16,7 @@ export function AppRoutes() {
 
       <Route element={<PrivateRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/imoveis/cadastrar" element={<ImovelCreate />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
