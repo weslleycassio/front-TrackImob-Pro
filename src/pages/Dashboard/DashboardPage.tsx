@@ -6,7 +6,7 @@ type ImoveisOption = 'cadastrar' | 'editar' | 'consulta';
 const menuItems: Array<{ key: ImoveisOption; label: string; description: string }> = [
   {
     key: 'cadastrar',
-    label: 'Cadastrar imóvel',
+    label: 'Cadastro de imóveis',
     description: 'Cadastre novos imóveis com endereço, metragem, valor e características principais.',
   },
   {
