@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
 
 type ImoveisOption = 'cadastrar' | 'editar' | 'consulta';
@@ -22,6 +23,7 @@ const menuItems: Array<{ key: ImoveisOption; label: string; description: string 
 ];
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState<ImoveisOption>('consulta');
@@ -31,6 +33,10 @@ export function DashboardPage() {
   const handleOptionSelect = (option: ImoveisOption) => {
     setSelectedOption(option);
     setIsMenuOpen(false);
+
+    if (option === 'cadastrar') {
+      navigate('/imoveis/cadastrar');
+    }
   };
 
   return (

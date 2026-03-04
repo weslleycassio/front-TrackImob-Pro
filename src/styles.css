@@ -241,3 +241,86 @@ button.secondary {
     padding: 5rem 1.2rem 1.5rem;
   }
 }
+
+textarea {
+  width: 100%;
+  border: 1px solid #b8d3ef;
+  border-radius: 10px;
+  padding: 0.68rem 0.78rem;
+  font-size: 0.95rem;
+  background: #fafdff;
+  color: #0f234f;
+  resize: vertical;
+  font-family: inherit;
+}
+
+textarea:focus {
+  outline: 2px solid rgba(29, 168, 240, 0.35);
+  border-color: #1da8f0;
+}
+
+.content-page {
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(140deg, #eef7ff 0%, #f8fdff 52%, #f0fff4 100%);
+}
+
+.form-card {
+  width: min(900px, 100%);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.hint-text {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #3f5f86;
+}
+
+.image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.image-preview-card {
+  margin: 0;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.image-preview-card img {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  display: block;
+}
+
+.image-preview-card figcaption {
+  padding: 0.35rem 0.45rem;
+  font-size: 0.75rem;
+  color: #38516d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-header-row {
+  margin-bottom: 0.8rem;
+}
+
+@media (max-width: 700px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
