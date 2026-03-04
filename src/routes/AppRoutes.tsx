@@ -15,11 +15,13 @@ export function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<PrivateRoute />}>
+        <Route path="/" element={<DashboardPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/imoveis/cadastrar" element={<ImovelCreate />} />
+        <Route path="/imoveis/novo" element={<ImovelCreate />} />
+        <Route path="/imoveis/cadastrar" element={<Navigate to="/imoveis/novo" replace />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

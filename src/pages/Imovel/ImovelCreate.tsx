@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -14,9 +14,7 @@ const imovelSchema = z.object({
   }),
   bairro: z.string().optional(),
   cidade: z.string().min(1, 'Cidade é obrigatória'),
-  preco: z.coerce
-    .number({ invalid_type_error: 'Preço deve ser um número válido' })
-    .positive('Preço deve ser maior que zero'),
+  preco: z.number({ invalid_type_error: 'Preço deve ser um número válido' }).positive('Preço deve ser maior que zero'),
   descricao: z.string().optional(),
   status: z.enum(['ATIVO', 'INATIVO'], {
     required_error: 'Status é obrigatório',
@@ -35,32 +33,59 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   currency: 'BRL',
 });
 
+const formatCurrencyFromDigits = (digits: string) => {
+  const onlyNumbers = digits.replace(/\D/g, '');
+  const value = Number(onlyNumbers || '0') / 100;
+
+  return {
+    formatted: currencyFormatter.format(value),
+    numeric: value,
+  };
+};
+
+const parseCurrencyToNumber = (formattedValue: string) => {
+  const sanitized = formattedValue.replace(/\s/g, '').replace('R$', '').replace(/\./g, '').replace(',', '.');
+  const value = Number(sanitized);
+
+  return Number.isNaN(value) ? 0 : value;
+};
+
 export function ImovelCreate() {
   const navigate = useNavigate();
   const [globalError, setGlobalError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedImages, setSelectedImages] = useState<PreviewFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [precoInput, setPrecoInput] = useState('R$ 0,00');
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [createdImovelIdForRetry, setCreatedImovelIdForRetry] = useState<string | number | null>(null);
+  const [isRetryingUpload, setIsRetryingUpload] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
-    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ImovelFormData>({
     resolver: zodResolver(imovelSchema),
     defaultValues: {
       finalidade: 'Venda',
       status: 'ATIVO',
+      preco: 0,
     },
   });
 
-  const watchedPreco = watch('preco');
-  const precoFormatado = useMemo(() => {
-    if (typeof watchedPreco !== 'number' || Number.isNaN(watchedPreco)) return 'R$ 0,00';
-    return currencyFormatter.format(watchedPreco);
-  }, [watchedPreco]);
+  const isBusy = useMemo(() => isSubmitting || isRetryingUpload, [isRetryingUpload, isSubmitting]);
+
+  useEffect(() => {
+    if (!isSuccessModalOpen) return;
+
+    const timeout = window.setTimeout(() => {
+      navigate('/', { replace: true });
+    }, 1500);
+
+    return () => window.clearTimeout(timeout);
+  }, [isSuccessModalOpen, navigate]);
 
   const handleImageSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -72,12 +97,18 @@ export function ImovelCreate() {
         previewUrl: URL.createObjectURL(file),
       }));
     });
+
+    setCreatedImovelIdForRetry(null);
+    setUploadProgress(0);
+    setGlobalError(null);
   };
 
   const clearForm = () => {
     selectedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
     setSelectedImages([]);
     setUploadProgress(0);
+    setCreatedImovelIdForRetry(null);
+    setPrecoInput('R$ 0,00');
     reset({
       titulo: '',
       tipo: '',
@@ -90,18 +121,29 @@ export function ImovelCreate() {
     });
   };
 
+  const onSuccess = () => {
+    clearForm();
+    setGlobalError(null);
+    setIsSuccessModalOpen(true);
+  };
+
+  const performUpload = async (imovelId: string | number, files: File[]) => {
+    await uploadImovelImages(imovelId, files, setUploadProgress);
+  };
+
   const onSubmit = async (data: ImovelFormData) => {
     setGlobalError(null);
-    setSuccessMessage(null);
 
     try {
+      const precoNumber = parseCurrencyToNumber(precoInput);
+
       const createdImovel = await createImovel({
         titulo: data.titulo,
         tipo: data.tipo,
         finalidade: data.finalidade,
         bairro: data.bairro,
         cidade: data.cidade,
-        preco: data.preco,
+        preco: precoNumber,
         descricao: data.descricao,
         status: data.status,
       });
@@ -114,15 +156,24 @@ export function ImovelCreate() {
       }
 
       if (selectedImages.length > 0) {
-        await uploadImovelImages(
-          createdImovelId,
-          selectedImages.map((image) => image.file),
-          setUploadProgress,
-        );
+        try {
+          await performUpload(
+            createdImovelId,
+            selectedImages.map((image) => image.file),
+          );
+        } catch (error) {
+          setCreatedImovelIdForRetry(createdImovelId);
+          setGlobalError(
+            toFriendlyError(
+              error,
+              'Imóvel cadastrado, mas o upload das imagens falhou. Você pode tentar novamente sem perder o cadastro.',
+            ),
+          );
+          return;
+        }
       }
 
-      setSuccessMessage('Imóvel cadastrado com sucesso!');
-      clearForm();
+      onSuccess();
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Erro ao cadastrar imóvel', error);
@@ -130,18 +181,52 @@ export function ImovelCreate() {
     }
   };
 
+  const handleRetryUpload = async () => {
+    if (!createdImovelIdForRetry || selectedImages.length === 0) return;
+
+    setGlobalError(null);
+    setIsRetryingUpload(true);
+
+    try {
+      await performUpload(
+        createdImovelIdForRetry,
+        selectedImages.map((image) => image.file),
+      );
+      onSuccess();
+    } catch (error) {
+      setGlobalError(
+        toFriendlyError(
+          error,
+          'O upload falhou novamente. Verifique as imagens e tente outra vez em alguns instantes.',
+        ),
+      );
+    } finally {
+      setIsRetryingUpload(false);
+    }
+  };
+
+  const handlePrecoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { formatted, numeric } = formatCurrencyFromDigits(event.target.value);
+    setPrecoInput(formatted);
+    setValue('preco', numeric, { shouldValidate: true, shouldDirty: true });
+  };
+
+  const handleSuccessClose = () => {
+    setIsSuccessModalOpen(false);
+    navigate('/', { replace: true });
+  };
+
   return (
     <main className="content-page">
       <section className="feature-card form-card">
         <div className="row page-header-row">
           <h1>Cadastrar Imóveis</h1>
-          <button className="secondary" type="button" onClick={() => navigate('/dashboard')}>
+          <button className="secondary" type="button" onClick={() => navigate('/')}>
             Voltar
           </button>
         </div>
 
         {globalError && <div className="global-error">{globalError}</div>}
-        {successMessage && <div className="info-text">{successMessage}</div>}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="form-group">
@@ -184,8 +269,14 @@ export function ImovelCreate() {
           <div className="form-grid">
             <div className="form-group">
               <label htmlFor="preco">Preço*</label>
-              <input id="preco" type="number" min="0" step="0.01" {...register('preco')} />
-              <small className="hint-text">Formatado: {precoFormatado}</small>
+              <input
+                id="preco"
+                type="text"
+                inputMode="numeric"
+                value={precoInput}
+                onChange={handlePrecoChange}
+                onBlur={() => setValue('preco', parseCurrencyToNumber(precoInput), { shouldValidate: true })}
+              />
               {errors.preco && <span className="error-text">{errors.preco.message}</span>}
             </div>
 
@@ -207,7 +298,7 @@ export function ImovelCreate() {
 
           <div className="form-group">
             <label htmlFor="imagens">Imagens</label>
-            <input id="imagens" type="file" accept="image/*" multiple onChange={handleImageSelection} />
+            <input id="imagens" type="file" accept="image/*" multiple onChange={handleImageSelection} disabled={isBusy} />
             <small className="hint-text">Você pode selecionar múltiplas imagens.</small>
           </div>
 
@@ -222,15 +313,31 @@ export function ImovelCreate() {
             </div>
           )}
 
-          {isSubmitting && selectedImages.length > 0 && (
-            <div className="hint-text">Upload de imagens: {uploadProgress}%</div>
+          {isBusy && selectedImages.length > 0 && <div className="hint-text">Upload de imagens: {uploadProgress}%</div>}
+
+          {createdImovelIdForRetry && selectedImages.length > 0 && (
+            <button className="secondary" type="button" onClick={handleRetryUpload} disabled={isBusy}>
+              {isRetryingUpload ? 'Enviando imagens novamente...' : 'Tentar upload novamente'}
+            </button>
           )}
 
-          <button className="primary" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Salvando...' : 'Salvar'}
+          <button className="primary" type="submit" disabled={isBusy}>
+            {isBusy ? 'Salvando...' : 'Salvar'}
           </button>
         </form>
       </section>
+
+      {isSuccessModalOpen && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title">
+            <h2 id="success-title">Imóvel cadastrado com sucesso!</h2>
+            <p>Você será redirecionado para a página inicial.</p>
+            <button className="primary" type="button" onClick={handleSuccessClose}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
