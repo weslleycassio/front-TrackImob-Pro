@@ -115,3 +115,129 @@ button.secondary {
 }
 
 .row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  background: linear-gradient(140deg, #eef7ff 0%, #f8fdff 52%, #f0fff4 100%);
+}
+
+.menu-toggle {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  width: auto;
+  padding: 0.55rem 0.85rem;
+  border-radius: 10px;
+  font-size: 1.2rem;
+  z-index: 3;
+  color: #ffffff;
+  background: #0b57c0;
+  box-shadow: 0 8px 20px rgba(11, 87, 192, 0.28);
+}
+
+.sidebar {
+  background: #0f234f;
+  color: #e6eefc;
+  padding: 4.2rem 1rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.3rem;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #ffffff;
+}
+
+.menu-title {
+  margin: 0 0 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #93c5fd;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.submenu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.submenu-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #dbeafe;
+  border: 1px solid transparent;
+  padding: 0.6rem 0.72rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.submenu-item:hover,
+.submenu-item.active {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(147, 197, 253, 0.45);
+}
+
+.content-area {
+  padding: 5rem 2rem 2rem;
+}
+
+.content-area h1 {
+  margin-top: 0;
+  color: #153173;
+}
+
+.feature-card {
+  width: min(650px, 100%);
+  margin-top: 1.3rem;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #dbeafe;
+  padding: 1.35rem;
+  box-shadow: 0 10px 24px rgba(15, 35, 79, 0.08);
+}
+
+.feature-card h3 {
+  margin-top: 0;
+  color: #0f234f;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(85vw, 310px);
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 2;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .content-area {
+    padding: 5rem 1.2rem 1.5rem;
+  }
+}
