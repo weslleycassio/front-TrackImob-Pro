@@ -41,7 +41,13 @@ export function RegisterPage() {
     setGlobalError(null);
 
     try {
-      const response = await registerRequest(data);
+      const response = await registerRequest({
+        nome: data.nome,
+        email: data.email,
+        password: data.senha,
+        telefone: data.telefone,
+        role: data.role,
+      });
       const token = response.token ?? response.accessToken;
 
       if (token) {

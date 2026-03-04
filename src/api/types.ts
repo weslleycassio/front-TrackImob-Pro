@@ -2,13 +2,13 @@ export type UserRole = 'ADMIN' | 'CORD' | 'CORRETOR' | 'USER';
 
 export type LoginRequest = {
   email: string;
-  senha: string;
+  password: string;
 };
 
 export type RegisterRequest = {
   nome: string;
   email: string;
-  senha: string;
+  password: string;
   telefone?: string;
   role: UserRole;
 };

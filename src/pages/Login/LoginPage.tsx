@@ -36,7 +36,10 @@ export function LoginPage({ infoMessage }: LoginPageProps) {
     setGlobalError(null);
 
     try {
-      const response = await loginRequest(data);
+      const response = await loginRequest({
+        email: data.email,
+        password: data.senha,
+      });
       const token = response.token ?? response.accessToken;
 
       if (!token) {
