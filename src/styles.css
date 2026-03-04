@@ -324,3 +324,32 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 35, 79, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+  padding: 1rem;
+}
+
+.success-modal {
+  width: min(420px, 100%);
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #dbeafe;
+  box-shadow: 0 12px 32px rgba(15, 35, 79, 0.25);
+  padding: 1.25rem;
+}
+
+.success-modal h2 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.success-modal p {
+  margin-top: 0;
+  color: #3f5f86;
+}

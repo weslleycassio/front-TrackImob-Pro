@@ -7,7 +7,7 @@ type ImoveisOption = 'cadastrar' | 'editar' | 'consulta';
 const menuItems: Array<{ key: ImoveisOption; label: string; description: string }> = [
   {
     key: 'cadastrar',
-    label: 'Cadastro de imóveis',
+    label: 'Cadastrar Imóveis',
     description: 'Cadastre novos imóveis com endereço, metragem, valor e características principais.',
   },
   {
@@ -35,7 +35,7 @@ export function DashboardPage() {
     setIsMenuOpen(false);
 
     if (option === 'cadastrar') {
-      navigate('/imoveis/cadastrar');
+      navigate('/imoveis/novo');
     }
   };
 
