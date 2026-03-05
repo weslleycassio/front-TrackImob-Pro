@@ -10,6 +10,48 @@ import type {
 
 type JwtPayload = Record<string, unknown>;
 
+function normalizeRole(value: unknown): User['role'] {
+  const rawRole = String(Array.isArray(value) ? value[0] : value ?? '').toUpperCase();
+  return rawRole === 'ADMIN' ? 'ADMIN' : 'CORRETOR';
+}
+
+function toUser(candidate: unknown, fallbackEmail: string): User | null {
+  if (!candidate || typeof candidate !== 'object') {
+    return null;
+  }
+
+  const record = candidate as Record<string, unknown>;
+  const userId =
+    toNumber(record.id) ??
+    toNumber(record.userId) ??
+    toNumber(record.usuarioId) ??
+    toNumber(record.user_id);
+  const imobiliariaId =
+    toNumber(record.imobiliariaId) ??
+    toNumber(record.imobiliaria_id) ??
+    toNumber(record.realEstateId) ??
+    toNumber(record.companyId);
+
+  if (!userId || !imobiliariaId) {
+    return null;
+  }
+
+  return {
+    id: userId,
+    nome: String(record.nome ?? record.name ?? record.username ?? 'Usuário'),
+    telefone: String(record.telefone ?? record.phone ?? record.celular ?? ''),
+    email: String(record.email ?? record.userEmail ?? fallbackEmail),
+    role: normalizeRole(record.role ?? record.roles ?? record.perfil ?? record.userRole),
+    imobiliariaId,
+    imobiliariaNome:
+      typeof record.imobiliariaNome === 'string'
+        ? record.imobiliariaNome
+        : typeof record.imobiliaria_nome === 'string'
+          ? record.imobiliaria_nome
+          : undefined,
+  };
+}
+
 function decodeJwtPayload(token: string): JwtPayload | null {
   const [, payload] = token.split('.');
   if (!payload) return null;
@@ -57,14 +99,7 @@ function getUserFromToken(token: string, email: string): User | null {
     return null;
   }
 
-  const rawRole =
-    payload.role ??
-    payload.roles ??
-    payload.perfil ??
-    payload.userRole;
-  const role = String(Array.isArray(rawRole) ? rawRole[0] : rawRole ?? '').toUpperCase() === 'ADMIN'
-    ? 'ADMIN'
-    : 'CORRETOR';
+  const role = normalizeRole(payload.role ?? payload.roles ?? payload.perfil ?? payload.userRole);
 
   return {
     id: userId,
@@ -88,13 +123,9 @@ export async function loginRequest(payload: LoginRequest) {
     authPayload?.access_token ??
     authPayload?.jwt ??
     data?.token;
-  const user =
-    authPayload?.user ??
-    authPayload?.usuario ??
-    authPayload?.admin ??
-    authPayload?.profile ??
-    data?.user ??
-    getUserFromToken(token ?? '', payload.email);
+  const userCandidate =
+    authPayload?.user ?? authPayload?.usuario ?? authPayload?.admin ?? authPayload?.profile ?? data?.user;
+  const user = toUser(userCandidate, payload.email) ?? getUserFromToken(token ?? '', payload.email);
 
   if (!token || !user) {
     throw new Error('Resposta de login inválida.');
