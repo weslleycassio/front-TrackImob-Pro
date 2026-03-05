@@ -1,9 +1,45 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { getMinhaImobiliariaRequest } from '../api/imobiliariasService';
+import { saveStoredUser } from '../auth/storage';
 import { useAuth } from '../auth/useAuth';
+import { HamburgerMenuDrawer } from '../components/HamburgerMenuDrawer';
+import { Topbar } from '../components/Topbar';
 
 export function AppLayout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [imobiliariaNome, setImobiliariaNome] = useState(user?.imobiliariaNome ?? 'TrackImob Pro');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    if (user.imobiliariaNome) {
+      setImobiliariaNome(user.imobiliariaNome);
+      return;
+    }
+
+    const loadImobiliariaNome = async () => {
+      try {
+        const data = await getMinhaImobiliariaRequest(user.imobiliariaId);
+        setImobiliariaNome(data.nome);
+        saveStoredUser({ ...user, imobiliariaNome: data.nome });
+      } catch {
+        logout();
+      }
+    };
+
+    loadImobiliariaNome();
+  }, [logout, navigate, user]);
+
+  const userLabel = useMemo(() => {
+    if (!user) return 'TrackImob Pro';
+    return `${imobiliariaNome} - ${user.nome} - ${user.role}`;
+  }, [imobiliariaNome, user]);
 
   const handleLogout = () => {
     logout();
@@ -11,35 +47,17 @@ export function AppLayout() {
   };
 
   return (
-    <main className="app-layout">
-      <aside className="app-sidebar">
-        <h2>TrackImob</h2>
-        <nav>
-          <NavLink to="/app" end className="sidebar-link">
-            Imóveis
-          </NavLink>
-          {(user?.role === 'ADMIN' || user?.role === 'CORRETOR') && (
-            <NavLink to="/app/users" className="sidebar-link">
-              Usuários
-            </NavLink>
-          )}
-        </nav>
+    <main className="app-shell-layout">
+      <Topbar userLabel={userLabel} onMenuToggle={() => setIsDrawerOpen(true)} />
+      <HamburgerMenuDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onLogout={handleLogout}
+        userRole={user?.role}
+      />
 
-        <button type="button" className="logout-btn" onClick={handleLogout}>
-          Sair
-        </button>
-      </aside>
-
-      <section className="app-main">
-        <header className="topbar">
-          <div>
-            <strong>{user?.nome}</strong>
-            <span>{user?.role}</span>
-          </div>
-        </header>
-        <div className="app-content">
-          <Outlet />
-        </div>
+      <section className="app-content-with-topbar">
+        <Outlet />
       </section>
     </main>
   );

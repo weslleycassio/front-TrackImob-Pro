@@ -9,6 +9,7 @@ export type User = {
   status?: string;
   createdAt?: string;
   imobiliariaId: number;
+  imobiliariaNome?: string;
 };
 
 export type LoginRequest = {
