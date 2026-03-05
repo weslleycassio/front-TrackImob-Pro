@@ -7,6 +7,6 @@ export async function getUsersRequest() {
 }
 
 export async function createUserRequest(payload: CreateUserRequest) {
-  const { data } = await apiClient.post<User>('/users', payload);
+  const { data } = await apiClient.post<User>('/auth/register', payload);
   return data;
 }
