@@ -8,8 +8,19 @@ import type {
 } from './types';
 
 export async function loginRequest(payload: LoginRequest) {
-  const { data } = await apiClient.post<LoginResponse>(authEndpoints.login, payload);
-  return data;
+  const { data } = await apiClient.post(authEndpoints.login, payload);
+
+  const token = data?.token ?? data?.accessToken ?? data?.access_token;
+  const user = data?.user ?? data?.usuario;
+
+  if (!token || !user) {
+    throw new Error('Resposta de login inválida.');
+  }
+
+  return {
+    token,
+    user,
+  } satisfies LoginResponse;
 }
 
 export async function registerImobiliariaRequest(payload: RegisterImobiliariaRequest) {
