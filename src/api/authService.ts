@@ -10,8 +10,20 @@ import type {
 export async function loginRequest(payload: LoginRequest) {
   const { data } = await apiClient.post(authEndpoints.login, payload);
 
-  const token = data?.token ?? data?.accessToken ?? data?.access_token;
-  const user = data?.user ?? data?.usuario;
+  const authPayload = data?.data ?? data?.result ?? data;
+
+  const token =
+    authPayload?.token ??
+    authPayload?.accessToken ??
+    authPayload?.access_token ??
+    authPayload?.jwt ??
+    data?.token;
+  const user =
+    authPayload?.user ??
+    authPayload?.usuario ??
+    authPayload?.admin ??
+    authPayload?.profile ??
+    data?.user;
 
   if (!token || !user) {
     throw new Error('Resposta de login inválida.');
