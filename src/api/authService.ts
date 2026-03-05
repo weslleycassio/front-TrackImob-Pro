@@ -10,6 +10,21 @@ import type {
 
 type JwtPayload = Record<string, unknown>;
 
+function toEntityId(value: unknown): string | number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim();
+    if (trimmedValue !== '') {
+      return trimmedValue;
+    }
+  }
+
+  return null;
+}
+
 function normalizeRole(value: unknown): User['role'] {
   const rawRole = String(Array.isArray(value) ? value[0] : value ?? '').toUpperCase();
   return rawRole === 'ADMIN' ? 'ADMIN' : 'CORRETOR';
@@ -22,15 +37,15 @@ function toUser(candidate: unknown, fallbackEmail: string): User | null {
 
   const record = candidate as Record<string, unknown>;
   const userId =
-    toNumber(record.id) ??
-    toNumber(record.userId) ??
-    toNumber(record.usuarioId) ??
-    toNumber(record.user_id);
+    toEntityId(record.id) ??
+    toEntityId(record.userId) ??
+    toEntityId(record.usuarioId) ??
+    toEntityId(record.user_id);
   const imobiliariaId =
-    toNumber(record.imobiliariaId) ??
-    toNumber(record.imobiliaria_id) ??
-    toNumber(record.realEstateId) ??
-    toNumber(record.companyId);
+    toEntityId(record.imobiliariaId) ??
+    toEntityId(record.imobiliaria_id) ??
+    toEntityId(record.realEstateId) ??
+    toEntityId(record.companyId);
 
   if (!userId || !imobiliariaId) {
     return null;
@@ -66,34 +81,19 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   }
 }
 
-function toNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsedValue = Number(value);
-    if (Number.isFinite(parsedValue)) {
-      return parsedValue;
-    }
-  }
-
-  return null;
-}
-
 function getUserFromToken(token: string, email: string): User | null {
   const payload = decodeJwtPayload(token);
   if (!payload) return null;
 
   const userId =
-    toNumber(payload.id) ??
-    toNumber(payload.userId) ??
-    toNumber(payload.usuarioId) ??
-    toNumber(payload.sub);
+    toEntityId(payload.id) ??
+    toEntityId(payload.userId) ??
+    toEntityId(payload.usuarioId) ??
+    toEntityId(payload.sub);
   const imobiliariaId =
-    toNumber(payload.imobiliariaId) ??
-    toNumber(payload.realEstateId) ??
-    toNumber(payload.companyId);
+    toEntityId(payload.imobiliariaId) ??
+    toEntityId(payload.realEstateId) ??
+    toEntityId(payload.companyId);
 
   if (!userId || !imobiliariaId) {
     return null;
