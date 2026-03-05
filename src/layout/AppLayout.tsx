@@ -29,12 +29,12 @@ export function AppLayout() {
         setImobiliariaNome(data.nome);
         saveStoredUser({ ...user, imobiliariaNome: data.nome });
       } catch {
-        logout();
+        setImobiliariaNome(user.imobiliariaNome ?? 'TrackImob Pro');
       }
     };
 
     loadImobiliariaNome();
-  }, [logout, navigate, user]);
+  }, [navigate, user]);
 
   const userLabel = useMemo(() => {
     if (!user) return 'TrackImob Pro';
