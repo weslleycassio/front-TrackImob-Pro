@@ -1,12 +1,14 @@
 import { createContext, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
-import { clearStoredToken, getStoredToken, saveStoredToken } from './storage';
+import type { User } from '../api/types';
+import { clearAuthStorage, getStoredToken, getStoredUser, saveStoredToken, saveStoredUser } from './storage';
 
 type AuthContextData = {
   token: string | null;
+  user: User | null;
   isAuthenticated: boolean;
-  login: (token: string) => void;
+  login: (token: string, user: User) => void;
   logout: () => void;
 };
 
@@ -19,21 +21,16 @@ type AuthProviderProps = {
 export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const [token, setToken] = useState<string | null>(getStoredToken());
+  const [user, setUser] = useState<User | null>(getStoredUser());
 
   const logout = useCallback(() => {
     setToken(null);
-    clearStoredToken();
+    setUser(null);
+    clearAuthStorage();
     navigate('/login', { replace: true });
   }, [navigate]);
 
   useEffect(() => {
-    const requestInterceptor = apiClient.interceptors.request.use((config) => {
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    });
-
     const responseInterceptor = apiClient.interceptors.response.use(
       (response) => response,
       (error) => {
@@ -45,24 +42,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
 
     return () => {
-      apiClient.interceptors.request.eject(requestInterceptor);
       apiClient.interceptors.response.eject(responseInterceptor);
     };
-  }, [logout, token]);
+  }, [logout]);
 
-  const handleLogin = useCallback((nextToken: string) => {
+  const handleLogin = useCallback((nextToken: string, nextUser: User) => {
     setToken(nextToken);
+    setUser(nextUser);
     saveStoredToken(nextToken);
+    saveStoredUser(nextUser);
   }, []);
 
   const value = useMemo(
     () => ({
       token,
+      user,
       isAuthenticated: Boolean(token),
       login: handleLogin,
       logout,
     }),
-    [handleLogin, logout, token],
+    [handleLogin, logout, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

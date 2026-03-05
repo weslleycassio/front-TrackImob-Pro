@@ -1,35 +1,26 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { PrivateRoute } from '../auth/PrivateRoute';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { ProtectedRoute } from '../auth/ProtectedRoute';
+import { AppLayout } from '../layout/AppLayout';
+import { AppHomePage } from '../pages/AppHome/AppHomePage';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { RegisterPage } from '../pages/Register/RegisterPage';
-import { DashboardPage } from '../pages/Dashboard/DashboardPage';
-import { ImovelCreate } from '../pages/Imovel/ImovelCreate';
+import { UsersPage } from '../pages/Users/UsersPage';
 
 export function AppRoutes() {
-  const location = useLocation();
-  const loginMessage = (location.state as { message?: string } | null)?.message;
-
   return (
     <Routes>
-      <Route path="/login" element={<LoginPageWithMessage message={loginMessage} />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/login" element={<LoginPage />} />
 
-      <Route element={<PrivateRoute />}>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/imoveis/novo" element={<ImovelCreate />} />
-        <Route path="/imoveis/cadastrar" element={<Navigate to="/imoveis/novo" replace />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/app" element={<AppLayout />}>
+          <Route index element={<AppHomePage />} />
+          <Route path="users" element={<UsersPage />} />
+        </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<Navigate to="/app" replace />} />
+      <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>
   );
-}
-
-type LoginPageWithMessageProps = {
-  message?: string;
-};
-
-function LoginPageWithMessage({ message }: LoginPageWithMessageProps) {
-  return <LoginPage infoMessage={message} />;
 }
