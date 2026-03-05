@@ -8,14 +8,74 @@ import { registerImobiliariaRequest } from '../../api/authService';
 import { AuthLayout } from '../../components/AuthLayout';
 import { toFriendlyError } from '../../utils/errorMessages';
 
+const onlyDigits = (value: string) => value.replace(/\D/g, '');
+
+const formatBrazilianPhone = (value: string) => {
+  const digits = onlyDigits(value).slice(0, 11);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  const ddd = digits.slice(0, 2);
+  const remaining = digits.slice(2);
+
+  if (remaining.length <= 4) {
+    return `(${ddd}) ${remaining}`;
+  }
+
+  if (remaining.length <= 8) {
+    return `(${ddd}) ${remaining.slice(0, 4)}-${remaining.slice(4)}`;
+  }
+
+  return `(${ddd}) ${remaining.slice(0, 5)}-${remaining.slice(5)}`;
+};
+
+const formatCnpj = (value: string) => {
+  const digits = onlyDigits(value).slice(0, 14);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  if (digits.length <= 5) {
+    return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  }
+
+  if (digits.length <= 8) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  }
+
+  if (digits.length <= 12) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  }
+
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+};
+
 const registerSchema = z
   .object({
     imobiliariaNome: z.string().min(1, 'Informe o nome da imobiliária'),
-    imobiliariaTelefone: z.string().min(1, 'Telefone é obrigatório'),
+    imobiliariaTelefone: z
+      .string()
+      .min(1, 'Telefone é obrigatório')
+      .refine((value) => {
+        const length = onlyDigits(value).length;
+        return length === 10 || length === 11;
+      }, 'Informe um telefone com DDD válido'),
     imobiliariaEmail: z.string().email('Email inválido').optional().or(z.literal('')),
-    imobiliariaCnpj: z.string().optional(),
+    imobiliariaCnpj: z
+      .string()
+      .optional()
+      .refine((value) => !value || onlyDigits(value).length === 14, 'CNPJ deve conter 14 dígitos'),
     adminNome: z.string().min(1, 'Informe o nome do administrador'),
-    adminTelefone: z.string().min(1, 'Telefone é obrigatório'),
+    adminTelefone: z
+      .string()
+      .min(1, 'Telefone é obrigatório')
+      .refine((value) => {
+        const length = onlyDigits(value).length;
+        return length === 10 || length === 11;
+      }, 'Informe um telefone com DDD válido'),
     adminEmail: z.string().email('Informe um email válido'),
     password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
     confirmPassword: z.string().min(1, 'Confirme a senha'),
@@ -49,13 +109,13 @@ export function RegisterPage() {
       const response = await registerImobiliariaRequest({
         imobiliaria: {
           nome: data.imobiliariaNome,
-          telefone: data.imobiliariaTelefone,
+          telefone: onlyDigits(data.imobiliariaTelefone),
           email: data.imobiliariaEmail || undefined,
-          cnpj: data.imobiliariaCnpj || undefined,
+          cnpj: data.imobiliariaCnpj ? onlyDigits(data.imobiliariaCnpj) : undefined,
         },
         admin: {
           nome: data.adminNome,
-          telefone: data.adminTelefone,
+          telefone: onlyDigits(data.adminTelefone),
           email: data.adminEmail,
           password: data.password,
         },
@@ -92,7 +152,17 @@ export function RegisterPage() {
           </div>
           <div className="form-group">
             <label>Telefone</label>
-            <input type="text" {...register('imobiliariaTelefone')} />
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={15}
+              placeholder="(11) 99999-9999"
+              {...register('imobiliariaTelefone', {
+                onChange: (event) => {
+                  event.target.value = formatBrazilianPhone(event.target.value);
+                },
+              })}
+            />
             {errors.imobiliariaTelefone && (
               <span className="error-text">{errors.imobiliariaTelefone.message}</span>
             )}
@@ -104,7 +174,18 @@ export function RegisterPage() {
           </div>
           <div className="form-group">
             <label>CNPJ (opcional)</label>
-            <input type="text" {...register('imobiliariaCnpj')} />
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={18}
+              placeholder="00.000.000/0000-00"
+              {...register('imobiliariaCnpj', {
+                onChange: (event) => {
+                  event.target.value = formatCnpj(event.target.value);
+                },
+              })}
+            />
+            {errors.imobiliariaCnpj && <span className="error-text">{errors.imobiliariaCnpj.message}</span>}
           </div>
 
           <h3>Dados do admin</h3>
@@ -115,7 +196,17 @@ export function RegisterPage() {
           </div>
           <div className="form-group">
             <label>Telefone</label>
-            <input type="text" {...register('adminTelefone')} />
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={15}
+              placeholder="(11) 99999-9999"
+              {...register('adminTelefone', {
+                onChange: (event) => {
+                  event.target.value = formatBrazilianPhone(event.target.value);
+                },
+              })}
+            />
             {errors.adminTelefone && <span className="error-text">{errors.adminTelefone.message}</span>}
           </div>
           <div className="form-group">
