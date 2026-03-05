@@ -1,10 +1,14 @@
 import axios from 'axios';
+import { getStoredToken } from '../auth/storage';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  // @ts-expect-error fallback for CRA-style env var
+  process.env.REACT_APP_API_URL;
 
 if (!API_BASE_URL) {
   // eslint-disable-next-line no-console
-  console.warn('VITE_API_URL não definida. Configure no .env para integração com a API.');
+  console.warn('Defina VITE_API_URL (ou REACT_APP_API_URL) para conectar com a API.');
 }
 
 export const apiClient = axios.create({
@@ -12,4 +16,12 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = getStoredToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
