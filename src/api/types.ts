@@ -1,14 +1,16 @@
 export type UserRole = 'ADMIN' | 'CORRETOR';
 
+export type EntityId = string | number;
+
 export type User = {
-  id: number;
+  id: EntityId;
   nome: string;
   telefone: string;
   email: string;
   role: UserRole;
   status?: string;
   createdAt?: string;
-  imobiliariaId: number;
+  imobiliariaId: EntityId;
   imobiliariaNome?: string;
 };
 
@@ -39,7 +41,7 @@ export type RegisterImobiliariaRequest = {
 
 export type RegisterImobiliariaResponse = {
   imobiliaria: {
-    id: number;
+    id: EntityId;
     nome: string;
     telefone: string;
     email?: string;
