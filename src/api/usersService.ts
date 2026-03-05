@@ -2,7 +2,7 @@ import { apiClient } from './client';
 import type { CreateUserRequest, User } from './types';
 
 export async function getUsersRequest() {
-  const { data } = await apiClient.get<User[]>('/users');
+  const { data } = await apiClient.get<User[]>('/usuarios');
   return data;
 }
 
