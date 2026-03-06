@@ -165,6 +165,52 @@ button.secondary { background: #e2e8f0; color: #0f172a; }
 .users-table th, .users-table td { border-bottom: 1px solid #e2e8f0; text-align: left; padding: 0.6rem; font-size: 0.92rem; }
 .create-user-card { max-width: 720px; }
 
+.create-user-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.create-user-brand-panel {
+  display: none;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  padding: 1.6rem;
+  min-height: 320px;
+}
+
+.create-user-brand-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #2563eb;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.create-user-brand-panel h2 {
+  margin: 0.45rem 0 0;
+  color: #0f234f;
+  font-size: clamp(1.8rem, 2.8vw, 2.5rem);
+  line-height: 1.2;
+}
+
+@media (min-width: 768px) {
+  .create-user-layout {
+    grid-template-columns: minmax(0, 720px) minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .create-user-brand-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+}
+
 @media (max-width: 900px) {
   .topbar-user-label { font-size: 0.8rem; }
 }
