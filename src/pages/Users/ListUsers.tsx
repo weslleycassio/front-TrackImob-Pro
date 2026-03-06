@@ -1,14 +1,17 @@
 import { AxiosError } from 'axios';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+
 import { getUsersRequest, updateUserRequest } from '../../api/usersService';
 import type { UpdateUserRequest, User, UserRole } from '../../api/types';
+
 import { useAuth } from '../../auth/useAuth';
 
 const roleLabel: Record<UserRole, string> = {
   ADMIN: 'Administrador',
   CORRETOR: 'Corretor',
 };
+
 
 const onlyDigits = (value: string) => value.replace(/\D/g, '');
 
@@ -30,12 +33,13 @@ type EditFormData = {
   role: UserRole;
   telefone: string;
   ativo: boolean;
+
 };
 
 export function ListUsers() {
   const { user } = useAuth();
   const location = useLocation();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Usuario[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [error, setError] = useState<string | null>(
     location.state && (location.state as { forbidden?: boolean }).forbidden
@@ -147,11 +151,13 @@ export function ListUsers() {
       {!loading && !error && users.length === 0 && <p>Nenhum usuário encontrado.</p>}
 
       {!loading && !error && users.length > 0 && (
-        <table className="users-table">
+        <div className="users-table-wrapper">
+          <table className="users-table">
           <thead>
             <tr>
               <th>Nome</th>
               <th>E-mail</th>
+              <th>Telefone</th>
               <th>Função</th>
               <th>Ações</th>
             </tr>
@@ -161,6 +167,7 @@ export function ListUsers() {
               <tr key={item.id}>
                 <td>{item.nome}</td>
                 <td>{item.email}</td>
+                <td>{item.telefone}</td>
                 <td>{roleLabel[item.role] ?? item.role}</td>
                 <td>
                   {showActions ? (
@@ -170,11 +177,15 @@ export function ListUsers() {
                   ) : (
                     '-'
                   )}
+                  <span className={`status-badge ${item.ativo ? 'status-badge-active' : 'status-badge-inactive'}`}>
+                    {statusLabel[String(item.ativo)]}
+                  </span>
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       )}
 
       {editingUser && (

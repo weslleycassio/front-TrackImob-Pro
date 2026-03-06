@@ -1,8 +1,9 @@
 import { apiClient } from './client';
+
 import type { CreateUserRequest, UpdateUserRequest, User } from './types';
 
 export type UsuariosResponse = {
-  data: User[];
+  data: Usuario[];
   total: number;
 };
 
