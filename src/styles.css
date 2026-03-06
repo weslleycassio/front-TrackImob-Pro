@@ -161,8 +161,12 @@ button.secondary { background: #e2e8f0; color: #0f172a; }
   color: #0f172a;
   font-weight: 700;
 }
-.users-table { width: 100%; border-collapse: collapse; }
-.users-table th, .users-table td { border-bottom: 1px solid #e2e8f0; text-align: left; padding: 0.6rem; font-size: 0.92rem; }
+.users-table-wrapper { width: 100%; overflow-x: auto; }
+.users-table { width: 100%; min-width: 640px; border-collapse: collapse; }
+.users-table th, .users-table td { border-bottom: 1px solid #e2e8f0; text-align: left; padding: 0.6rem; font-size: 0.92rem; white-space: nowrap; }
+.status-badge { display: inline-block; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: 0.8rem; font-weight: 700; }
+.status-badge-active { background: #dcfce7; color: #166534; }
+.status-badge-inactive { background: #fee2e2; color: #991b1b; }
 .create-user-card { max-width: 720px; }
 
 .create-user-layout {
