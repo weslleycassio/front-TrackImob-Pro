@@ -1,14 +1,6 @@
 import { apiClient } from './client';
-import type { CreateUserRequest, User, UserRole } from './types';
 
-export type Usuario = {
-  id: string;
-  nome: string;
-  email: string;
-  telefone: string;
-  role: UserRole;
-  ativo: boolean;
-};
+import type { CreateUserRequest, UpdateUserRequest, User } from './types';
 
 export type UsuariosResponse = {
   data: Usuario[];
@@ -22,5 +14,11 @@ export async function getUsersRequest() {
 
 export async function createUserRequest(payload: CreateUserRequest) {
   const { data } = await apiClient.post<User>('/auth/register', payload);
+  return data;
+}
+
+
+export async function updateUserRequest(id: string, payload: UpdateUserRequest) {
+  const { data } = await apiClient.put<User>(`/usuarios/${id}`, payload);
   return data;
 }

@@ -8,10 +8,17 @@ export type User = {
   telefone: string;
   email: string;
   role: UserRole;
+  ativo?: boolean;
   status?: string;
   createdAt?: string;
   imobiliariaId: EntityId;
   imobiliariaNome?: string;
+};
+
+export type UpdateUserRequest = {
+  role: UserRole;
+  telefone: string;
+  ativo: boolean;
 };
 
 export type LoginRequest = {
