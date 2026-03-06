@@ -12,6 +12,11 @@ const roleLabel: Record<UserRole, string> = {
   CORRETOR: 'Corretor',
 };
 
+const statusLabel: Record<'true' | 'false', string> = {
+  true: 'Ativo',
+  false: 'Inativo',
+};
+
 
 const onlyDigits = (value: string) => value.replace(/\D/g, '');
 
@@ -39,7 +44,7 @@ type EditFormData = {
 export function ListUsers() {
   const { user } = useAuth();
   const location = useLocation();
-  const [users, setUsers] = useState<Usuario[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [error, setError] = useState<string | null>(
     location.state && (location.state as { forbidden?: boolean }).forbidden
@@ -178,7 +183,7 @@ export function ListUsers() {
                     '-'
                   )}
                   <span className={`status-badge ${item.ativo ? 'status-badge-active' : 'status-badge-inactive'}`}>
-                    {statusLabel[String(item.ativo)]}
+                    {item.ativo ? statusLabel.true : statusLabel.false}
                   </span>
                 </td>
               </tr>
