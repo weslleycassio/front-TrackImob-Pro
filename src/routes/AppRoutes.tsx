@@ -20,7 +20,7 @@ export function AppRoutes() {
           <Route path="usuarios" element={<ListUsers />} />
 
           <Route element={<RequireRole allowedRoles={['ADMIN']} />}>
-            <Route path="usuarios/novo" element={<CreateUser />} />
+            <Route path="usuarios/cadastrar" element={<CreateUser />} />
           </Route>
         </Route>
       </Route>
