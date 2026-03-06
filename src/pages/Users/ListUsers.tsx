@@ -50,7 +50,7 @@ export function ListUsers() {
       <div className="row">
         <h1>Usuários</h1>
         {user?.role === 'ADMIN' && (
-          <Link className="link-button" to="/app/usuarios/novo">
+          <Link className="link-button" to="/app/usuarios/cadastrar">
             Cadastrar usuário
           </Link>
         )}

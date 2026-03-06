@@ -53,7 +53,6 @@ export function AppLayout() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onLogout={handleLogout}
-        userRole={user?.role}
       />
 
       <section className="app-content-with-topbar">

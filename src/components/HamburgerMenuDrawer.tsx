@@ -1,16 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import type { UserRole } from '../api/types';
 
 type HamburgerMenuDrawerProps = {
   isOpen: boolean;
-  userRole?: UserRole;
   onClose: () => void;
   onLogout: () => void;
 };
 
 export function HamburgerMenuDrawer({
   isOpen,
-  userRole,
   onClose,
   onLogout,
 }: HamburgerMenuDrawerProps) {
@@ -27,11 +24,6 @@ export function HamburgerMenuDrawer({
           <NavLink to="/app/usuarios" className="drawer-link" onClick={onClose}>
             Consultar usuários
           </NavLink>
-          {userRole === 'ADMIN' && (
-            <NavLink to="/app/usuarios/novo" className="drawer-link" onClick={onClose}>
-              Cadastrar usuário
-            </NavLink>
-          )}
 
           <button type="button" className="drawer-logout-btn" onClick={onLogout}>
             Sair
