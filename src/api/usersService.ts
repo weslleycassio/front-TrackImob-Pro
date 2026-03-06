@@ -1,8 +1,17 @@
 import { apiClient } from './client';
-import type { CreateUserRequest, User } from './types';
+import type { CreateUserRequest, User, UserRole } from './types';
+
+export type Usuario = {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  role: UserRole;
+  ativo: boolean;
+};
 
 export type UsuariosResponse = {
-  data: User[];
+  data: Usuario[];
   total: number;
 };
 
