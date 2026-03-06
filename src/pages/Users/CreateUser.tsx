@@ -131,7 +131,7 @@ export function CreateUser() {
       </div>
 
       <aside className="create-user-brand-panel" aria-hidden="true">
-        <p className="create-user-brand-subtitle">Imobiliária logada</p>
+        <p className="create-user-brand-subtitle">Cadastro colaborador</p>
         <h2>{user?.imobiliariaNome ?? 'TrackImob Pro'}</h2>
       </aside>
     </section>
