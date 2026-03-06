@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { createUserRequest, getUsersRequest } from '../../api/usersService';
-import type { Usuario } from '../../api/usersService';
+import type { User } from '../../api/types';
 import { useAuth } from '../../auth/useAuth';
 
 const createUserSchema = z.object({
@@ -20,7 +20,7 @@ type CreateUserFormData = z.infer<typeof createUserSchema>;
 export function UsersPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const [users, setUsers] = useState<Usuario[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
