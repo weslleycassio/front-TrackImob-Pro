@@ -39,8 +39,8 @@ export function UsersPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getUsersRequest();
-      setUsers(data);
+      const response = await getUsersRequest();
+      setUsers(response.data);
     } catch (err) {
       const errorResponse = err as AxiosError;
       if (errorResponse.response?.status === 403) {

@@ -2,13 +2,19 @@ import { AxiosError } from 'axios';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getUsersRequest } from '../../api/usersService';
-import type { User } from '../../api/types';
+import type { User, UserRole } from '../../api/types';
 import { useAuth } from '../../auth/useAuth';
+
+const roleLabel: Record<UserRole, string> = {
+  ADMIN: 'Administrador',
+  CORRETOR: 'Corretor',
+};
 
 export function ListUsers() {
   const { user } = useAuth();
   const location = useLocation();
   const [users, setUsers] = useState<User[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [error, setError] = useState<string | null>(
     location.state && (location.state as { forbidden?: boolean }).forbidden
       ? 'Sem permissão (403)'
@@ -19,15 +25,17 @@ export function ListUsers() {
   useEffect(() => {
     const loadUsers = async () => {
       setLoading(true);
+      setError(null);
       try {
-        const data = await getUsersRequest();
-        setUsers(data);
+        const response = await getUsersRequest();
+        setUsers(response.data);
+        setTotalUsers(response.total);
       } catch (err) {
         const errorResponse = err as AxiosError;
         if (errorResponse.response?.status === 403) {
           setError('Sem permissão (403)');
         } else {
-          setError('Erro ao carregar usuários');
+          setError('Erro ao carregar usuários.');
         }
       } finally {
         setLoading(false);
@@ -40,7 +48,7 @@ export function ListUsers() {
   return (
     <section className="card">
       <div className="row">
-        <h1>Consultar usuários</h1>
+        <h1>Usuários</h1>
         {user?.role === 'ADMIN' && (
           <Link className="link-button" to="/app/usuarios/novo">
             Cadastrar usuário
@@ -48,33 +56,29 @@ export function ListUsers() {
         )}
       </div>
 
+      {!loading && !error && <p>Total de usuários: {totalUsers}</p>}
+
       {error && <div className="global-error">{error}</div>}
 
-      {loading && <p>Carregando...</p>}
+      {loading && <p>Carregando usuários...</p>}
 
       {!loading && !error && users.length === 0 && <p>Nenhum usuário encontrado.</p>}
 
-      {!loading && users.length > 0 && (
+      {!loading && !error && users.length > 0 && (
         <table className="users-table">
           <thead>
             <tr>
               <th>Nome</th>
-              <th>Telefone</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Criado em</th>
+              <th>E-mail</th>
+              <th>Função</th>
             </tr>
           </thead>
           <tbody>
             {users.map((item) => (
               <tr key={item.id}>
                 <td>{item.nome}</td>
-                <td>{item.telefone}</td>
                 <td>{item.email}</td>
-                <td>{item.role}</td>
-                <td>{item.status ?? '-'}</td>
-                <td>{item.createdAt ? new Date(item.createdAt).toLocaleString('pt-BR') : '-'}</td>
+                <td>{roleLabel[item.role] ?? item.role}</td>
               </tr>
             ))}
           </tbody>
