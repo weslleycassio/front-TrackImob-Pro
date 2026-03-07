@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { getMinhaImobiliariaRequest } from '../api/imobiliariasService';
+
 import { updateLoggedUserRequest } from '../api/usersService';
 import { saveStoredUser } from '../auth/storage';
 import { useAuth } from '../auth/useAuth';
@@ -53,6 +54,7 @@ export function AppLayout() {
     }
 
     try {
+
       const refreshedUser = await updateLoggedUserRequest({
         nome: user.nome,
         email: user.email,
