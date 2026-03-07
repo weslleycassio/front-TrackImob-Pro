@@ -9,6 +9,7 @@ type AuthContextData = {
   user: User | null;
   isAuthenticated: boolean;
   login: (token: string, user: User) => void;
+  updateUser: (user: User) => void;
   logout: () => void;
 };
 
@@ -53,15 +54,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     saveStoredUser(nextUser);
   }, []);
 
+  const handleUpdateUser = useCallback((nextUser: User) => {
+    setUser(nextUser);
+    saveStoredUser(nextUser);
+  }, []);
+
   const value = useMemo(
     () => ({
       token,
       user,
       isAuthenticated: Boolean(token),
       login: handleLogin,
+      updateUser: handleUpdateUser,
       logout,
     }),
-    [handleLogin, logout, token, user],
+    [handleLogin, handleUpdateUser, logout, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

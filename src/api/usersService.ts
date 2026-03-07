@@ -26,3 +26,8 @@ export async function updateLoggedUserRequest(payload: UpdateMeRequest) {
   const { data } = await apiClient.put<User>('/usuarios/me', payload);
   return data;
 }
+
+export async function getLoggedUserRequest() {
+  const { data } = await apiClient.get<User>('/usuarios/me');
+  return data;
+}
