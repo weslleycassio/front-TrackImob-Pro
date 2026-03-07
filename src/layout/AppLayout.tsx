@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { getMinhaImobiliariaRequest } from '../api/imobiliariasService';
+
 import { updateLoggedUserRequest } from '../api/usersService';
 import type { UpdateMeRequest } from '../api/types';
 import { saveStoredUser } from '../auth/storage';
@@ -59,10 +60,13 @@ export function AppLayout() {
     navigate('/login', { replace: true });
   };
 
+
   const openProfileModal = () => {
+
     if (!user) {
       return;
     }
+
 
     setProfileError(null);
     setProfileSuccess(null);
@@ -129,12 +133,15 @@ export function AppLayout() {
       setProfileError('Não foi possível atualizar seus dados.');
     } finally {
       setIsUpdatingUser(false);
+
     }
   };
 
   return (
     <main className="app-shell-layout">
+
       <Topbar userLabel={userLabel} onMenuToggle={() => setIsDrawerOpen(true)} onProfileClick={openProfileModal} />
+
       <HamburgerMenuDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
