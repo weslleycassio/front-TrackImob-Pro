@@ -93,11 +93,17 @@ button.secondary { background: #e2e8f0; color: #0f172a; }
   height: 64px;
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  justify-content: space-between;
   background: #fff;
   border-bottom: 1px solid #dbeafe;
   padding: 0 1.2rem;
   z-index: 30;
+}
+.topbar-left-content {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
 }
 .menu-toggle-btn {
   background: #0f234f;
@@ -108,7 +114,45 @@ button.secondary { background: #e2e8f0; color: #0f172a; }
   padding: 0;
   font-size: 1.2rem;
 }
-.topbar-user-label { margin: 0; font-weight: 700; color: #1e293b; font-size: 0.95rem; }
+.topbar-user-label {
+  margin: 0;
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-profile-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.topbar-profile-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+}
+
+.topbar-profile-icon {
+  width: 22px;
+  height: 22px;
+  stroke: #475569;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 
 .app-content-with-topbar { padding: 84px 1.2rem 1.2rem; }
 
@@ -229,6 +273,11 @@ button.secondary { background: #e2e8f0; color: #0f172a; }
 
 @media (max-width: 900px) {
   .topbar-user-label { font-size: 0.8rem; }
+  .topbar-fixed { padding: 0 0.9rem; }
+  .topbar-profile-btn {
+    width: 36px;
+    height: 36px;
+  }
 }
 
 .action-button {
