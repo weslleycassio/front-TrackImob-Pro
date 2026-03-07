@@ -2,6 +2,13 @@ import { apiClient } from './client';
 
 import type { CreateUserRequest, UpdateMeRequest, UpdateUserRequest, User } from './types';
 
+type UpdateMeResponse =
+  | User
+  | {
+      message?: string;
+      data: User;
+    };
+
 export type UsuariosResponse = {
   data: User[];
   total: number;
@@ -23,6 +30,11 @@ export async function updateUserRequest(id: string, payload: UpdateUserRequest) 
 }
 
 export async function updateLoggedUserRequest(payload: UpdateMeRequest) {
-  const { data } = await apiClient.put<User>('/usuarios/me', payload);
+  const { data } = await apiClient.put<UpdateMeResponse>('/usuarios/me', payload);
+
+  if ('data' in data) {
+    return data.data;
+  }
+
   return data;
 }
