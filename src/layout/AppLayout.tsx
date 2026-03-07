@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { getMinhaImobiliariaRequest } from '../api/imobiliariasService';
+import { getLoggedUserRequest } from '../api/usersService';
 import { saveStoredUser } from '../auth/storage';
 import { useAuth } from '../auth/useAuth';
 import { HamburgerMenuDrawer } from '../components/HamburgerMenuDrawer';
@@ -8,7 +9,7 @@ import { Topbar } from '../components/Topbar';
 
 export function AppLayout() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [imobiliariaNome, setImobiliariaNome] = useState(user?.imobiliariaNome ?? 'TrackImob Pro');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -46,9 +47,35 @@ export function AppLayout() {
     navigate('/login', { replace: true });
   };
 
+  const handleRefreshUser = async () => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      const refreshedUser = await getLoggedUserRequest();
+      const nextUser = {
+        ...refreshedUser,
+        imobiliariaNome: user.imobiliariaNome ?? refreshedUser.imobiliariaNome,
+      };
+
+      updateUser(nextUser);
+      if (nextUser.imobiliariaNome) {
+        setImobiliariaNome(nextUser.imobiliariaNome);
+      }
+    } catch {
+      // Silencia erro para não interromper a navegação do usuário no layout
+    }
+  };
+
+
   return (
     <main className="app-shell-layout">
-      <Topbar userLabel={userLabel} onMenuToggle={() => setIsDrawerOpen(true)} />
+      <Topbar
+        userLabel={userLabel}
+        onMenuToggle={() => setIsDrawerOpen(true)}
+        onRefreshUser={handleRefreshUser}
+      />
       <HamburgerMenuDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
