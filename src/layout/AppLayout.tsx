@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { getMinhaImobiliariaRequest } from '../api/imobiliariasService';
-import { getLoggedUserRequest } from '../api/usersService';
+
+import { updateLoggedUserRequest } from '../api/usersService';
 import { saveStoredUser } from '../auth/storage';
 import { useAuth } from '../auth/useAuth';
 import { HamburgerMenuDrawer } from '../components/HamburgerMenuDrawer';
@@ -53,7 +54,12 @@ export function AppLayout() {
     }
 
     try {
-      const refreshedUser = await getLoggedUserRequest();
+
+      const refreshedUser = await updateLoggedUserRequest({
+        nome: user.nome,
+        email: user.email,
+        telefone: user.telefone,
+      });
       const nextUser = {
         ...refreshedUser,
         imobiliariaNome: user.imobiliariaNome ?? refreshedUser.imobiliariaNome,
@@ -67,7 +73,6 @@ export function AppLayout() {
       // Silencia erro para não interromper a navegação do usuário no layout
     }
   };
-
 
   return (
     <main className="app-shell-layout">
