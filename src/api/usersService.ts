@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 
-import type { CreateUserRequest, UpdateUserRequest, User } from './types';
+import type { CreateUserRequest, UpdateMeRequest, UpdateUserRequest, User } from './types';
 
 export type UsuariosResponse = {
   data: User[];
@@ -17,8 +17,12 @@ export async function createUserRequest(payload: CreateUserRequest) {
   return data;
 }
 
-
 export async function updateUserRequest(id: string, payload: UpdateUserRequest) {
   const { data } = await apiClient.put<User>(`/usuarios/${id}`, payload);
+  return data;
+}
+
+export async function updateLoggedUserRequest(payload: UpdateMeRequest) {
+  const { data } = await apiClient.put<User>('/usuarios/me', payload);
   return data;
 }
