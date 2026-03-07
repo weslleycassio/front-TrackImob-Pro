@@ -21,6 +21,12 @@ export type UpdateUserRequest = {
   ativo: boolean;
 };
 
+export type UpdateMeRequest = {
+  nome: string;
+  email: string;
+  telefone: string;
+};
+
 export type LoginRequest = {
   email: string;
   password: string;
