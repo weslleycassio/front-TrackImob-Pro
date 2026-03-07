@@ -38,8 +38,3 @@ export async function updateLoggedUserRequest(payload: UpdateMeRequest) {
 
   return data;
 }
-
-export async function getLoggedUserRequest() {
-  const { data } = await apiClient.get<User>('/usuarios/me');
-  return data;
-}

@@ -1,10 +1,12 @@
 type TopbarProps = {
   userLabel: string;
   onMenuToggle: () => void;
-  onRefreshUser: () => void;
+
+  onProfileClick: () => void;
 };
 
-export function Topbar({ userLabel, onMenuToggle, onRefreshUser }: TopbarProps) {
+export function Topbar({ userLabel, onMenuToggle, onProfileClick }: TopbarProps) {
+
   return (
     <header className="topbar-fixed">
       <div className="topbar-left-content">
@@ -17,9 +19,11 @@ export function Topbar({ userLabel, onMenuToggle, onRefreshUser }: TopbarProps) 
       <button
         type="button"
         className="topbar-profile-btn"
-        aria-label="Atualizar dados do usuário"
-        title="Atualizar dados do usuário"
-        onClick={onRefreshUser}
+
+        aria-label="Editar perfil do usuário"
+        title="Editar perfil do usuário"
+        onClick={onProfileClick}
+
       >
         <svg viewBox="0 0 24 24" aria-hidden="true" className="topbar-profile-icon">
           <path d="M20 6v5h-5" />
