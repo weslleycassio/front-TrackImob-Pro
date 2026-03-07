@@ -27,6 +27,12 @@ export type UpdateMeRequest = {
   telefone: string;
 };
 
+export type AlterarSenhaPayload = {
+  senhaAtual: string;
+  novaSenha: string;
+  confirmarNovaSenha: string;
+};
+
 export type LoginRequest = {
   email: string;
   password: string;

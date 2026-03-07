@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 
-import type { CreateUserRequest, UpdateMeRequest, UpdateUserRequest, User } from './types';
+import type { AlterarSenhaPayload, CreateUserRequest, UpdateMeRequest, UpdateUserRequest, User } from './types';
 
 type UpdateMeResponse =
   | User
@@ -37,4 +37,9 @@ export async function updateLoggedUserRequest(payload: UpdateMeRequest) {
   }
 
   return data;
+}
+
+
+export async function changePasswordRequest(payload: AlterarSenhaPayload) {
+  await apiClient.put('/usuarios/me/senha', payload);
 }
