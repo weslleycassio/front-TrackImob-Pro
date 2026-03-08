@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 import { authEndpoints } from './endpoints/auth';
 import type {
+  ForgotPasswordRequest,
   LoginRequest,
   LoginResponse,
   RegisterImobiliariaRequest,
@@ -151,4 +152,8 @@ export async function registerImobiliariaRequest(payload: RegisterImobiliariaReq
     );
     return data;
   }
+}
+
+export async function forgotPasswordRequest(payload: ForgotPasswordRequest) {
+  await apiClient.post(authEndpoints.forgotPassword, payload);
 }

@@ -3,6 +3,7 @@ import { RequireAuth } from '../auth/RequireAuth';
 import { RequireRole } from '../auth/RequireRole';
 import { AppLayout } from '../layout/AppLayout';
 import { AppHomePage } from '../pages/AppHome/AppHomePage';
+import { ForgotPasswordPage } from '../pages/Login/ForgotPasswordPage';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { RegisterPage } from '../pages/Register/RegisterPage';
 import { CreateUser } from '../pages/Users/CreateUser';
@@ -13,6 +14,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
 
       <Route element={<RequireAuth />}>
         <Route path="/app" element={<AppLayout />}>
