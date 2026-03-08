@@ -7,6 +7,7 @@ import { ForgotPasswordPage } from '../pages/Login/ForgotPasswordPage';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { ResetPasswordPage } from '../pages/Login/ResetPasswordPage';
 import { RegisterPage } from '../pages/Register/RegisterPage';
+import { ImovelCreate } from '../pages/Imovel/ImovelCreate';
 import { CreateUser } from '../pages/Users/CreateUser';
 import { ListUsers } from '../pages/Users/ListUsers';
 
@@ -19,12 +20,13 @@ export function AppRoutes() {
       <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
 
       <Route element={<RequireAuth />}>
-        <Route path="/app" element={<AppLayout />}>
-          <Route index element={<AppHomePage />} />
-          <Route path="usuarios" element={<ListUsers />} />
+        <Route element={<AppLayout />}>
+          <Route path="/app" element={<AppHomePage />} />
+          <Route path="/imoveis/cadastrar" element={<ImovelCreate />} />
+          <Route path="/app/usuarios" element={<ListUsers />} />
 
           <Route element={<RequireRole allowedRoles={['ADMIN']} />}>
-            <Route path="usuarios/cadastrar" element={<CreateUser />} />
+            <Route path="/app/usuarios/cadastrar" element={<CreateUser />} />
           </Route>
         </Route>
       </Route>

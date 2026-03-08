@@ -1,17 +1,17 @@
 import { apiClient } from '../api/client';
 import { imoveisEndpoints } from '../api/endpoints/imoveis';
 
-export type FinalidadeImovel = 'Venda' | 'Aluguel';
+export type FinalidadeImovel = 'Venda' | 'Locação';
 export type StatusImovel = 'ATIVO' | 'INATIVO';
 
 export type CreateImovelPayload = {
   titulo: string;
-  tipo: string;
+  tipo: 'Apartamento' | 'Casa' | 'Sobrado' | 'Terreno' | 'Comercial' | 'Outro';
   finalidade: FinalidadeImovel;
-  bairro?: string;
+  bairro: string;
   cidade: string;
   preco: number;
-  descricao?: string;
+  descricao: string;
   status: StatusImovel;
 };
 
