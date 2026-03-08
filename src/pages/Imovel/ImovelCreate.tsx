@@ -3,19 +3,21 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { toFriendlyError } from '../../utils/errorMessages';
 import { createImovel, extractImovelId, uploadImovelImages } from '../../services/imoveis';
+import { toFriendlyError } from '../../utils/errorMessages';
+
+const tiposDeImovel = ['Apartamento', 'Casa', 'Sobrado', 'Terreno', 'Comercial', 'Outro'] as const;
 
 const imovelSchema = z.object({
-  titulo: z.string().min(1, 'Título é obrigatório'),
-  tipo: z.string().min(1, 'Tipo é obrigatório'),
-  finalidade: z.enum(['Venda', 'Aluguel'], {
+  titulo: z.string().trim().min(1, 'Título é obrigatório'),
+  tipo: z.enum(tiposDeImovel, { required_error: 'Tipo é obrigatório' }),
+  finalidade: z.enum(['Venda', 'Locação'], {
     required_error: 'Finalidade é obrigatória',
   }),
-  bairro: z.string().optional(),
-  cidade: z.string().min(1, 'Cidade é obrigatória'),
-  preco: z.number({ invalid_type_error: 'Preço deve ser um número válido' }).positive('Preço deve ser maior que zero'),
-  descricao: z.string().optional(),
+  bairro: z.string().trim().min(1, 'Bairro é obrigatório'),
+  cidade: z.string().trim().min(1, 'Cidade é obrigatória'),
+  preco: z.number({ invalid_type_error: 'Preço deve ser um valor válido' }).positive('Preço deve ser maior que zero'),
+  descricao: z.string().trim().min(1, 'Descrição é obrigatória'),
   status: z.enum(['ATIVO', 'INATIVO'], {
     required_error: 'Status é obrigatório',
   }),
@@ -57,8 +59,6 @@ export function ImovelCreate() {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [precoInput, setPrecoInput] = useState('R$ 0,00');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [createdImovelIdForRetry, setCreatedImovelIdForRetry] = useState<string | number | null>(null);
-  const [isRetryingUpload, setIsRetryingUpload] = useState(false);
 
   const {
     register,
@@ -72,16 +72,24 @@ export function ImovelCreate() {
       finalidade: 'Venda',
       status: 'ATIVO',
       preco: 0,
+      tipo: 'Apartamento',
     },
   });
 
-  const isBusy = useMemo(() => isSubmitting || isRetryingUpload, [isRetryingUpload, isSubmitting]);
+  const isBusy = useMemo(() => isSubmitting, [isSubmitting]);
+
+  useEffect(
+    () => () => {
+      selectedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+    },
+    [selectedImages],
+  );
 
   useEffect(() => {
     if (!isSuccessModalOpen) return;
 
     const timeout = window.setTimeout(() => {
-      navigate('/', { replace: true });
+      navigate('/app', { replace: true });
     }, 1500);
 
     return () => window.clearTimeout(timeout);
@@ -98,20 +106,29 @@ export function ImovelCreate() {
       }));
     });
 
-    setCreatedImovelIdForRetry(null);
     setUploadProgress(0);
     setGlobalError(null);
+  };
+
+  const removeImage = (fileName: string, fileModified: number) => {
+    setSelectedImages((previous) => {
+      const target = previous.find((image) => image.file.name === fileName && image.file.lastModified === fileModified);
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+
+      return previous.filter((image) => image.file.name !== fileName || image.file.lastModified !== fileModified);
+    });
   };
 
   const clearForm = () => {
     selectedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
     setSelectedImages([]);
     setUploadProgress(0);
-    setCreatedImovelIdForRetry(null);
     setPrecoInput('R$ 0,00');
     reset({
       titulo: '',
-      tipo: '',
+      tipo: 'Apartamento',
       finalidade: 'Venda',
       bairro: '',
       cidade: '',
@@ -119,16 +136,6 @@ export function ImovelCreate() {
       descricao: '',
       status: 'ATIVO',
     });
-  };
-
-  const onSuccess = () => {
-    clearForm();
-    setGlobalError(null);
-    setIsSuccessModalOpen(true);
-  };
-
-  const performUpload = async (imovelId: string | number, files: File[]) => {
-    await uploadImovelImages(imovelId, files, setUploadProgress);
   };
 
   const onSubmit = async (data: ImovelFormData) => {
@@ -150,58 +157,31 @@ export function ImovelCreate() {
 
       const createdImovelId = extractImovelId(createdImovel);
 
-      if (!createdImovelId) {
-        setGlobalError('Imóvel criado, mas o retorno da API não trouxe o ID para upload de imagens.');
-        return;
-      }
-
       if (selectedImages.length > 0) {
-        try {
-          await performUpload(
-            createdImovelId,
-            selectedImages.map((image) => image.file),
-          );
-        } catch (error) {
-          setCreatedImovelIdForRetry(createdImovelId);
-          setGlobalError(
-            toFriendlyError(
-              error,
-              'Imóvel cadastrado, mas o upload das imagens falhou. Você pode tentar novamente sem perder o cadastro.',
-            ),
-          );
-          return;
+        if (!createdImovelId) {
+          setGlobalError('Imóvel cadastrado, mas não foi possível enviar as imagens neste momento.');
+        } else {
+          try {
+            await uploadImovelImages(
+              createdImovelId,
+              selectedImages.map((image) => image.file),
+              setUploadProgress,
+            );
+          } catch (uploadError) {
+            setGlobalError(
+              toFriendlyError(
+                uploadError,
+                'Imóvel cadastrado, mas o upload das imagens falhou. Tente editar o imóvel para enviar novamente.',
+              ),
+            );
+          }
         }
       }
 
-      onSuccess();
+      clearForm();
+      setIsSuccessModalOpen(true);
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Erro ao cadastrar imóvel', error);
-      setGlobalError(toFriendlyError(error, 'Não foi possível cadastrar o imóvel. Tente novamente.'));
-    }
-  };
-
-  const handleRetryUpload = async () => {
-    if (!createdImovelIdForRetry || selectedImages.length === 0) return;
-
-    setGlobalError(null);
-    setIsRetryingUpload(true);
-
-    try {
-      await performUpload(
-        createdImovelIdForRetry,
-        selectedImages.map((image) => image.file),
-      );
-      onSuccess();
-    } catch (error) {
-      setGlobalError(
-        toFriendlyError(
-          error,
-          'O upload falhou novamente. Verifique as imagens e tente outra vez em alguns instantes.',
-        ),
-      );
-    } finally {
-      setIsRetryingUpload(false);
+      setGlobalError(toFriendlyError(error, 'Não foi possível cadastrar o imóvel. Verifique os dados e tente novamente.'));
     }
   };
 
@@ -213,15 +193,15 @@ export function ImovelCreate() {
 
   const handleSuccessClose = () => {
     setIsSuccessModalOpen(false);
-    navigate('/', { replace: true });
+    navigate('/app', { replace: true });
   };
 
   return (
     <main className="content-page">
-      <section className="feature-card form-card">
+      <section className="feature-card form-card imovel-form-card">
         <div className="row page-header-row">
-          <h1>Cadastrar Imóveis</h1>
-          <button className="secondary" type="button" onClick={() => navigate('/')}>
+          <h1>Cadastrar Imóvel</h1>
+          <button className="secondary" type="button" onClick={() => navigate('/app')}>
             Voltar
           </button>
         </div>
@@ -231,14 +211,20 @@ export function ImovelCreate() {
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="form-group">
             <label htmlFor="titulo">Título*</label>
-            <input id="titulo" type="text" {...register('titulo')} />
+            <input id="titulo" type="text" placeholder="Ex: Apartamento 2 dormitórios com sacada" {...register('titulo')} />
             {errors.titulo && <span className="error-text">{errors.titulo.message}</span>}
           </div>
 
           <div className="form-grid">
             <div className="form-group">
               <label htmlFor="tipo">Tipo*</label>
-              <input id="tipo" type="text" {...register('tipo')} />
+              <select id="tipo" {...register('tipo')}>
+                {tiposDeImovel.map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {tipo}
+                  </option>
+                ))}
+              </select>
               {errors.tipo && <span className="error-text">{errors.tipo.message}</span>}
             </div>
 
@@ -246,7 +232,7 @@ export function ImovelCreate() {
               <label htmlFor="finalidade">Finalidade*</label>
               <select id="finalidade" {...register('finalidade')}>
                 <option value="Venda">Venda</option>
-                <option value="Aluguel">Aluguel</option>
+                <option value="Locação">Locação</option>
               </select>
               {errors.finalidade && <span className="error-text">{errors.finalidade.message}</span>}
             </div>
@@ -254,7 +240,7 @@ export function ImovelCreate() {
 
           <div className="form-grid">
             <div className="form-group">
-              <label htmlFor="bairro">Bairro</label>
+              <label htmlFor="bairro">Bairro*</label>
               <input id="bairro" type="text" {...register('bairro')} />
               {errors.bairro && <span className="error-text">{errors.bairro.message}</span>}
             </div>
@@ -291,15 +277,17 @@ export function ImovelCreate() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="descricao">Descrição</label>
+            <label htmlFor="descricao">Descrição*</label>
             <textarea id="descricao" rows={4} {...register('descricao')} />
             {errors.descricao && <span className="error-text">{errors.descricao.message}</span>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="imagens">Imagens</label>
+            <label htmlFor="imagens">Imagens do imóvel</label>
             <input id="imagens" type="file" accept="image/*" multiple onChange={handleImageSelection} disabled={isBusy} />
-            <small className="hint-text">Você pode selecionar múltiplas imagens.</small>
+            <small className="hint-text">
+              Selecione uma ou mais imagens para preview. O componente já está preparado para integração com upload.
+            </small>
           </div>
 
           {selectedImages.length > 0 && (
@@ -308,18 +296,20 @@ export function ImovelCreate() {
                 <figure key={`${image.file.name}-${image.file.lastModified}`} className="image-preview-card">
                   <img src={image.previewUrl} alt={image.file.name} />
                   <figcaption>{image.file.name}</figcaption>
+                  <button
+                    type="button"
+                    className="image-remove-btn"
+                    onClick={() => removeImage(image.file.name, image.file.lastModified)}
+                    disabled={isBusy}
+                  >
+                    Remover
+                  </button>
                 </figure>
               ))}
             </div>
           )}
 
           {isBusy && selectedImages.length > 0 && <div className="hint-text">Upload de imagens: {uploadProgress}%</div>}
-
-          {createdImovelIdForRetry && selectedImages.length > 0 && (
-            <button className="secondary" type="button" onClick={handleRetryUpload} disabled={isBusy}>
-              {isRetryingUpload ? 'Enviando imagens novamente...' : 'Tentar upload novamente'}
-            </button>
-          )}
 
           <button className="primary" type="submit" disabled={isBusy}>
             {isBusy ? 'Salvando...' : 'Salvar'}
@@ -330,8 +320,8 @@ export function ImovelCreate() {
       {isSuccessModalOpen && (
         <div className="modal-backdrop" role="presentation">
           <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title">
-            <h2 id="success-title">Imóvel cadastrado com sucesso!</h2>
-            <p>Você será redirecionado para a página inicial.</p>
+            <h2 id="success-title">Imóvel cadastrado com sucesso</h2>
+            <p>Você será redirecionado para a tela inicial.</p>
             <button className="primary" type="button" onClick={handleSuccessClose}>
               OK
             </button>
