@@ -6,6 +6,7 @@ import type {
   LoginResponse,
   RegisterImobiliariaRequest,
   RegisterImobiliariaResponse,
+  ResetPasswordRequest,
   User,
 } from './types';
 
@@ -156,4 +157,8 @@ export async function registerImobiliariaRequest(payload: RegisterImobiliariaReq
 
 export async function forgotPasswordRequest(payload: ForgotPasswordRequest) {
   await apiClient.post(authEndpoints.forgotPassword, payload);
+}
+
+export async function resetPasswordRequest(payload: ResetPasswordRequest) {
+  await apiClient.post(authEndpoints.resetPassword, payload);
 }

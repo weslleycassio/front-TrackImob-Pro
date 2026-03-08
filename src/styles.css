@@ -345,3 +345,25 @@ button.secondary { background: #e2e8f0; color: #0f172a; }
   cursor: not-allowed;
   text-decoration: none;
 }
+
+.password-input-wrapper {
+  position: relative;
+}
+
+.password-input-wrapper input {
+  padding-right: 5.6rem;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 8px;
+  padding: 0.28rem 0.55rem;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 700;
+}

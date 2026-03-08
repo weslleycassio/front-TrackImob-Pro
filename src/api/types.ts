@@ -48,6 +48,12 @@ export type ForgotPasswordRequest = {
   email: string;
 };
 
+export type ResetPasswordRequest = {
+  token: string;
+  novaSenha: string;
+  confirmarNovaSenha: string;
+};
+
 export type RegisterImobiliariaRequest = {
   imobiliaria: {
     nome: string;
