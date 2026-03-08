@@ -8,6 +8,7 @@ import { LoginPage } from '../pages/Login/LoginPage';
 import { ResetPasswordPage } from '../pages/Login/ResetPasswordPage';
 import { RegisterPage } from '../pages/Register/RegisterPage';
 import { ImovelCreate } from '../pages/Imovel/ImovelCreate';
+import { ConsultaImoveisPage } from '../pages/imoveis/ConsultaImoveisPage';
 import { CreateUser } from '../pages/Users/CreateUser';
 import { ListUsers } from '../pages/Users/ListUsers';
 
@@ -22,6 +23,7 @@ export function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route path="/app" element={<AppHomePage />} />
+          <Route path="/imoveis" element={<ConsultaImoveisPage />} />
           <Route path="/imoveis/cadastrar" element={<ImovelCreate />} />
           <Route path="/app/usuarios" element={<ListUsers />} />
 

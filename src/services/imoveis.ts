@@ -3,10 +3,11 @@ import { imoveisEndpoints } from '../api/endpoints/imoveis';
 
 export type FinalidadeImovel = 'Venda' | 'Locação';
 export type StatusImovel = 'ATIVO' | 'INATIVO';
+export type TipoImovel = 'Apartamento' | 'Casa' | 'Sobrado' | 'Terreno' | 'Comercial' | 'Outro';
 
 export type CreateImovelPayload = {
   titulo: string;
-  tipo: 'Apartamento' | 'Casa' | 'Sobrado' | 'Terreno' | 'Comercial' | 'Outro';
+  tipo: TipoImovel;
   finalidade: FinalidadeImovel;
   bairro: string;
   cidade: string;
@@ -22,8 +23,56 @@ type CreateImovelResponse = {
   };
 };
 
+export type Imovel = {
+  id: string | number;
+  titulo: string;
+  tipo: TipoImovel | string;
+  finalidade: FinalidadeImovel | string;
+  bairro: string;
+  cidade: string;
+  preco: number;
+  descricao?: string;
+  status: StatusImovel | string;
+  createdAt?: string;
+};
+
+export type GetImoveisFilters = {
+  busca?: string;
+  cidade?: string;
+  bairro?: string;
+  tipo?: string;
+  finalidade?: string;
+  status?: string;
+  precoMin?: number;
+  precoMax?: number;
+  page?: number;
+  limit?: number;
+};
+
+export type GetImoveisResponse = {
+  data: Imovel[];
+  total?: number;
+  page?: number;
+  limit?: number;
+};
+
 export async function createImovel(payload: CreateImovelPayload) {
   const { data } = await apiClient.post<CreateImovelResponse>(imoveisEndpoints.create, payload);
+  return data;
+}
+
+export async function getImoveis(filters: GetImoveisFilters = {}) {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') {
+      return;
+    }
+
+    params.set(key, String(value));
+  });
+
+  const { data } = await apiClient.get<GetImoveisResponse>(imoveisEndpoints.list, { params });
   return data;
 }
 
