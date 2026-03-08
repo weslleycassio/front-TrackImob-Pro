@@ -43,6 +43,11 @@ export type LoginResponse = {
   user: User;
 };
 
+
+export type ForgotPasswordRequest = {
+  email: string;
+};
+
 export type RegisterImobiliariaRequest = {
   imobiliaria: {
     nome: string;

@@ -84,6 +84,17 @@ button.secondary { background: #e2e8f0; color: #0f172a; }
   margin-bottom: 0.8rem;
 }
 
+.auth-secondary-action {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.2rem 0 0.9rem;
+}
+
+.auth-secondary-action a {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 .app-shell-layout { min-height: 100vh; background: #f8fbff; }
 .topbar-fixed {
   position: fixed;

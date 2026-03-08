@@ -59,6 +59,10 @@ export function LoginPage() {
             {errors.password && <span className="error-text">{errors.password.message}</span>}
           </div>
 
+          <div className="auth-secondary-action">
+            <Link to="/esqueci-senha">Esqueci minha senha</Link>
+          </div>
+
           <button className="primary" type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Entrando...' : 'Entrar'}
           </button>
