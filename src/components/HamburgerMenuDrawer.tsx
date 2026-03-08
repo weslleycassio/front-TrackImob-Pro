@@ -19,6 +19,9 @@ export function HamburgerMenuDrawer({
       <aside className={`hamburger-drawer ${isOpen ? 'open' : ''}`}>
         <nav>
           <p className="drawer-section-title">Imóveis</p>
+          <NavLink to="/imoveis" end className={getDrawerLinkClass} onClick={onClose}>
+            Consultar imóveis
+          </NavLink>
           <NavLink to="/imoveis/cadastrar" className={getDrawerLinkClass} onClick={onClose}>
             Cadastrar imóvel
           </NavLink>
