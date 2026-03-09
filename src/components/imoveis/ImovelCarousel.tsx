@@ -1,29 +1,33 @@
-import { useMemo, useState } from 'react';
-
-export type ImagemImovel = {
-  id: string;
-  url: string;
-};
+import { useEffect, useMemo, useState } from 'react';
+import type { ImagemImovel } from '../../services/imoveisService';
+import { getImovelImagemPrincipal, orderImagensByCapa } from '../../utils/imovelImages';
 
 type ImovelCarouselProps = {
   imagens: ImagemImovel[];
   titulo: string;
 };
 
-const PLACEHOLDER_TEXT = 'Sem imagem disponível';
-
 export function ImovelCarousel({ imagens, titulo }: ImovelCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [failedIds, setFailedIds] = useState<Record<string, boolean>>({});
 
+  const imagensOrdenadas = useMemo(() => orderImagensByCapa(imagens), [imagens]);
+
   const imagensValidas = useMemo(
-    () => imagens.filter((imagem) => imagem.url && !failedIds[imagem.id]),
-    [imagens, failedIds],
+    () => imagensOrdenadas.filter((imagem) => imagem.url && !failedIds[imagem.id]),
+    [imagensOrdenadas, failedIds],
   );
 
   const total = imagensValidas.length;
   const hasNavigation = total > 1;
   const currentImage = imagensValidas[currentIndex] ?? null;
+  const fallbackImage = getImovelImagemPrincipal(imagensOrdenadas);
+
+  useEffect(() => {
+    if (currentIndex > total - 1) {
+      setCurrentIndex(0);
+    }
+  }, [currentIndex, total]);
 
   const goToPrevious = () => {
     if (!hasNavigation) return;
@@ -37,12 +41,13 @@ export function ImovelCarousel({ imagens, titulo }: ImovelCarouselProps) {
 
   const handleImageError = (id: string) => {
     setFailedIds((previous) => ({ ...previous, [id]: true }));
-    setCurrentIndex(0);
   };
 
   return (
     <div className="imovel-carousel" aria-label={`Fotos do imóvel ${titulo}`}>
-      {!currentImage && <div className="imovel-carousel-placeholder">{PLACEHOLDER_TEXT}</div>}
+      {!currentImage && (
+        <img src={fallbackImage} alt={`${titulo} - sem imagem`} className="imovel-carousel-image" loading="lazy" />
+      )}
 
       {currentImage && (
         <>
