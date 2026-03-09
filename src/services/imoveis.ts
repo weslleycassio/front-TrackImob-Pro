@@ -5,6 +5,13 @@ export type FinalidadeImovel = 'Venda' | 'Locação';
 export type StatusImovel = 'ATIVO' | 'INATIVO';
 export type TipoImovel = 'Apartamento' | 'Casa' | 'Sobrado' | 'Terreno' | 'Comercial' | 'Outro';
 
+export type ImagemImovel = {
+  id: string;
+  url: string;
+  capa: boolean;
+  ordem: number;
+};
+
 export type CreateImovelPayload = {
   titulo: string;
   tipo: TipoImovel;
@@ -34,10 +41,7 @@ export type Imovel = {
   descricao?: string;
   status: StatusImovel | string;
   createdAt?: string;
-  imagens?: Array<{
-    id: string;
-    url: string;
-  }>;
+  imagens: ImagemImovel[];
 };
 
 export type GetImoveisFilters = {
@@ -66,23 +70,15 @@ export async function createImovel(payload: CreateImovelPayload) {
 }
 
 export async function createImovelWithImages(payload: CreateImovelPayload, files: File[]) {
-  const formData = new FormData();
+  const createResponse = await createImovel(payload);
+  const imovelId = extractImovelId(createResponse);
 
-  formData.append('titulo', payload.titulo);
-  formData.append('tipo', payload.tipo);
-  formData.append('finalidade', payload.finalidade);
-  formData.append('bairro', payload.bairro);
-  formData.append('cidade', payload.cidade);
-  formData.append('preco', String(payload.preco));
-  formData.append('descricao', payload.descricao);
-  formData.append('status', payload.status);
+  if (!imovelId || files.length === 0) {
+    return createResponse;
+  }
 
-  files.forEach((file) => {
-    formData.append('images', file);
-  });
-
-  const { data } = await apiClient.post<CreateImovelResponse>(imoveisEndpoints.create, formData);
-  return data;
+  await uploadImovelImages(imovelId, files);
+  return createResponse;
 }
 
 export async function getImoveis(filters: GetImoveisFilters = {}) {
@@ -97,6 +93,11 @@ export async function getImoveis(filters: GetImoveisFilters = {}) {
   });
 
   const { data } = await apiClient.get<GetImoveisResponse>(imoveisEndpoints.list, { params });
+  return data;
+}
+
+export async function getImovelById(imovelId: string | number) {
+  const { data } = await apiClient.get<Imovel>(imoveisEndpoints.detail(imovelId));
   return data;
 }
 

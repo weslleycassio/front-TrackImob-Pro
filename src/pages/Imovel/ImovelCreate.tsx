@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { createImovelWithImages } from '../../services/imoveis';
+import { createImovel, extractImovelId, uploadImovelImages } from '../../services/imoveis';
 import { toFriendlyError } from '../../utils/errorMessages';
 
 const tiposDeImovel = ['Apartamento', 'Casa', 'Sobrado', 'Terreno', 'Comercial', 'Outro'] as const;
@@ -82,7 +82,7 @@ export function ImovelCreate() {
     },
   });
 
-  const isBusy = useMemo(() => isSubmitting, [isSubmitting]);
+  const isBusy = useMemo(() => isSubmitting || uploadProgress > 0, [isSubmitting, uploadProgress]);
 
   useEffect(
     () => () => {
@@ -181,11 +181,6 @@ export function ImovelCreate() {
     setGlobalError(null);
     setImageError(null);
 
-    if (selectedImages.length === 0) {
-      setImageError('Adicione pelo menos uma imagem do imóvel para concluir o cadastro.');
-      return;
-    }
-
     try {
       const precoNumber = parseCurrencyToNumber(precoInput);
 
@@ -200,11 +195,26 @@ export function ImovelCreate() {
         status: data.status,
       };
 
-      const selectedImageFiles = selectedImages.map((image) => image.file);
+      const createdImovel = await createImovel(payload);
+      const imovelId = extractImovelId(createdImovel);
 
-      await createImovelWithImages(payload, selectedImageFiles);
+      if (selectedImages.length > 0) {
+        if (!imovelId) {
+          throw new Error('Não foi possível identificar o imóvel criado para realizar upload das imagens.');
+        }
+
+        const selectedImageFiles = selectedImages.map((image) => image.file);
+        setUploadProgress(1);
+
+        await uploadImovelImages(imovelId, selectedImageFiles, (progress) => setUploadProgress(progress));
+      }
+
       setUploadProgress(100);
-      setSuccessMessage('Imóvel cadastrado com sucesso.');
+      setSuccessMessage(
+        selectedImages.length > 0
+          ? 'Imóvel e imagens cadastrados com sucesso.'
+          : 'Imóvel cadastrado com sucesso. Você pode adicionar imagens depois.',
+      );
 
       clearForm();
       setIsSuccessModalOpen(true);
@@ -321,7 +331,7 @@ export function ImovelCreate() {
               disabled={isBusy}
             />
             <small className="hint-text">
-              {selectedImages.length} imagem(ns) selecionada(s). Mínimo de 1 imagem e máximo de {MAX_IMAGES} arquivos, até {MAX_IMAGE_SIZE_MB}MB cada.
+              {selectedImages.length} imagem(ns) selecionada(s). Máximo de {MAX_IMAGES} arquivos, até {MAX_IMAGE_SIZE_MB}MB cada.
             </small>
             {imageError && <span className="error-text">{imageError}</span>}
           </div>
@@ -345,7 +355,9 @@ export function ImovelCreate() {
             </div>
           )}
 
-          {isBusy && selectedImages.length > 0 && <div className="hint-text">Upload de imagens: {uploadProgress}%</div>}
+          {isBusy && selectedImages.length > 0 && uploadProgress > 0 && (
+            <div className="hint-text">Upload de imagens: {uploadProgress}%</div>
+          )}
 
           <button className="primary" type="submit" disabled={isBusy}>
             {isBusy ? 'Salvando...' : 'Salvar'}
