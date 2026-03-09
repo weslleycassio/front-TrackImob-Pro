@@ -1,5 +1,6 @@
 export {
   createImovel,
+  createImovelWithImages,
   extractImovelId,
   getImoveis,
   uploadImovelImages,
