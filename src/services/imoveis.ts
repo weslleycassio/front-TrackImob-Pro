@@ -24,6 +24,12 @@ export type CreateImovelPayload = {
 };
 
 type CreateImovelResponse = {
+  data?: {
+    id?: string | number;
+    imovel?: {
+      id?: string | number;
+    };
+  };
   id?: string | number;
   imovel?: {
     id?: string | number;
@@ -109,8 +115,14 @@ export async function uploadImovelImages(
   const formData = new FormData();
 
   files.forEach((file) => {
-    formData.append('images', file);
+    formData.append('imagens', file);
   });
+
+  console.log('[ImovelUpload] FormData files', files.map((file) => ({
+    name: file.name,
+    size: file.size,
+    type: file.type,
+  })));
 
   const { data } = await apiClient.post(imoveisEndpoints.uploadImages(imovelId), formData, {
     onUploadProgress: (event) => {
@@ -124,5 +136,5 @@ export async function uploadImovelImages(
 }
 
 export function extractImovelId(response: CreateImovelResponse) {
-  return response.id ?? response.imovel?.id;
+  return response.id ?? response.imovel?.id ?? response.data?.id ?? response.data?.imovel?.id;
 }
