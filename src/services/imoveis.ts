@@ -65,6 +65,26 @@ export async function createImovel(payload: CreateImovelPayload) {
   return data;
 }
 
+export async function createImovelWithImages(payload: CreateImovelPayload, files: File[]) {
+  const formData = new FormData();
+
+  formData.append('titulo', payload.titulo);
+  formData.append('tipo', payload.tipo);
+  formData.append('finalidade', payload.finalidade);
+  formData.append('bairro', payload.bairro);
+  formData.append('cidade', payload.cidade);
+  formData.append('preco', String(payload.preco));
+  formData.append('descricao', payload.descricao);
+  formData.append('status', payload.status);
+
+  files.forEach((file) => {
+    formData.append('imagens', file);
+  });
+
+  const { data } = await apiClient.post<CreateImovelResponse>(imoveisEndpoints.create, formData);
+  return data;
+}
+
 export async function getImoveis(filters: GetImoveisFilters = {}) {
   const params = new URLSearchParams();
 

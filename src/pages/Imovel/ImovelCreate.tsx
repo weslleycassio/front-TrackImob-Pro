@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { createImovel, extractImovelId, uploadImovelImages } from '../../services/imoveis';
+import { createImovel, createImovelWithImages, extractImovelId, uploadImovelImages } from '../../services/imoveis';
 import { toFriendlyError } from '../../utils/errorMessages';
 
 const tiposDeImovel = ['Apartamento', 'Casa', 'Sobrado', 'Terreno', 'Comercial', 'Outro'] as const;
@@ -183,7 +183,7 @@ export function ImovelCreate() {
     try {
       const precoNumber = parseCurrencyToNumber(precoInput);
 
-      const createdImovel = await createImovel({
+      const payload = {
         titulo: data.titulo,
         tipo: data.tipo,
         finalidade: data.finalidade,
@@ -192,23 +192,35 @@ export function ImovelCreate() {
         preco: precoNumber,
         descricao: data.descricao,
         status: data.status,
-      });
+      };
+
+      const selectedImageFiles = selectedImages.map((image) => image.file);
+
+      let hasImageUploadIssue = false;
+      let hasUploadedImagesOnCreate = false;
+      let createdImovel;
+
+      if (selectedImageFiles.length > 0) {
+        try {
+          createdImovel = await createImovelWithImages(payload, selectedImageFiles);
+          setUploadProgress(100);
+          hasUploadedImagesOnCreate = true;
+        } catch {
+          createdImovel = await createImovel(payload);
+        }
+      } else {
+        createdImovel = await createImovel(payload);
+      }
 
       const createdImovelId = extractImovelId(createdImovel);
 
-      let hasImageUploadIssue = false;
-
-      if (selectedImages.length > 0) {
+      if (selectedImageFiles.length > 0 && !hasUploadedImagesOnCreate) {
         if (!createdImovelId) {
           hasImageUploadIssue = true;
           setGlobalError('Imóvel cadastrado, mas não foi possível enviar as imagens neste momento.');
         } else {
           try {
-            await uploadImovelImages(
-              createdImovelId,
-              selectedImages.map((image) => image.file),
-              setUploadProgress,
-            );
+            await uploadImovelImages(createdImovelId, selectedImageFiles, setUploadProgress);
           } catch (uploadError) {
             setGlobalError(
               toFriendlyError(
