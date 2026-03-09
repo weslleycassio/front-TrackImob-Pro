@@ -181,6 +181,8 @@ export function ImovelCreate() {
     setGlobalError(null);
     setImageError(null);
 
+    const selectedImageFiles = selectedImages.map((image) => image.file);
+
     try {
       const precoNumber = parseCurrencyToNumber(precoInput);
 
@@ -196,29 +198,39 @@ export function ImovelCreate() {
       };
 
       const createdImovel = await createImovel(payload);
+      console.log('[ImovelCreate] Resposta do POST /imoveis:', createdImovel);
+
       const imovelId = extractImovelId(createdImovel);
+      console.log('[ImovelCreate] ID usado para upload:', imovelId);
+      console.log('[ImovelCreate] Quantidade de imagens selecionadas:', selectedImageFiles.length);
 
-      if (selectedImages.length > 0) {
-        if (!imovelId) {
-          throw new Error('Não foi possível identificar o imóvel criado para realizar upload das imagens.');
-        }
-
-        const selectedImageFiles = selectedImages.map((image) => image.file);
-        setUploadProgress(1);
-
-        await uploadImovelImages(imovelId, selectedImageFiles, (progress) => setUploadProgress(progress));
+      if (!selectedImageFiles.length) {
+        setUploadProgress(100);
+        setSuccessMessage('Imóvel cadastrado com sucesso. Você pode adicionar imagens depois.');
+        clearForm();
+        setIsSuccessModalOpen(true);
+        return;
       }
 
-      setUploadProgress(100);
-      setSuccessMessage(
-        selectedImages.length > 0
-          ? 'Imóvel e imagens cadastrados com sucesso.'
-          : 'Imóvel cadastrado com sucesso. Você pode adicionar imagens depois.',
-      );
+      if (!imovelId) {
+        throw new Error('Não foi possível identificar o imóvel criado para realizar upload das imagens.');
+      }
+
+      try {
+        setUploadProgress(1);
+        await uploadImovelImages(imovelId, selectedImageFiles, (progress) => setUploadProgress(progress));
+        setUploadProgress(100);
+        setSuccessMessage('Imóvel e imagens cadastrados com sucesso.');
+      } catch (uploadError) {
+        console.error('[ImovelCreate] Erro no upload de imagens:', uploadError);
+        setUploadProgress(0);
+        setSuccessMessage('Imóvel cadastrado com sucesso, mas houve falha no upload das imagens.');
+      }
 
       clearForm();
       setIsSuccessModalOpen(true);
     } catch (error) {
+      console.error('[ImovelCreate] Erro no cadastro do imóvel:', error);
       setGlobalError(toFriendlyError(error, 'Não foi possível cadastrar o imóvel. Verifique os dados e tente novamente.'));
     }
   };
