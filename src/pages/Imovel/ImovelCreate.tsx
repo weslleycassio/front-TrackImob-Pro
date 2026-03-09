@@ -30,6 +30,10 @@ type PreviewFile = {
   previewUrl: string;
 };
 
+const MAX_IMAGES = 10;
+const MAX_IMAGE_SIZE_MB = 5;
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
@@ -56,9 +60,11 @@ export function ImovelCreate() {
   const navigate = useNavigate();
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [selectedImages, setSelectedImages] = useState<PreviewFile[]>([]);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [precoInput, setPrecoInput] = useState('R$ 0,00');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('Imóvel cadastrado com sucesso.');
 
   const {
     register,
@@ -89,7 +95,7 @@ export function ImovelCreate() {
     if (!isSuccessModalOpen) return;
 
     const timeout = window.setTimeout(() => {
-      navigate('/app', { replace: true });
+      navigate('/imoveis', { replace: true });
     }, 1500);
 
     return () => window.clearTimeout(timeout);
@@ -97,13 +103,45 @@ export function ImovelCreate() {
 
   const handleImageSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+
+    if (!files.length) {
+      return;
+    }
+
+    const invalidTypeFiles = files.filter((file) => !ACCEPTED_IMAGE_TYPES.includes(file.type));
+    if (invalidTypeFiles.length > 0) {
+      setImageError('Formato inválido. Envie apenas arquivos JPG, JPEG, PNG ou WEBP.');
+      return;
+    }
+
+    const maxImageSizeBytes = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+    const invalidSizeFiles = files.filter((file) => file.size > maxImageSizeBytes);
+    if (invalidSizeFiles.length > 0) {
+      setImageError(`Cada imagem deve ter no máximo ${MAX_IMAGE_SIZE_MB}MB.`);
+      return;
+    }
 
     setSelectedImages((previous) => {
-      previous.forEach((image) => URL.revokeObjectURL(image.previewUrl));
-      return files.map((file) => ({
-        file,
-        previewUrl: URL.createObjectURL(file),
-      }));
+      const existingKeys = new Set(previous.map((image) => `${image.file.name}-${image.file.lastModified}-${image.file.size}`));
+      const newFiles = files.filter((file) => !existingKeys.has(`${file.name}-${file.lastModified}-${file.size}`));
+
+      const availableSlots = Math.max(0, MAX_IMAGES - previous.length);
+      const filesToAdd = newFiles.slice(0, availableSlots);
+
+      if (filesToAdd.length < newFiles.length) {
+        setImageError(`Limite máximo de ${MAX_IMAGES} imagens atingido.`);
+      } else {
+        setImageError(null);
+      }
+
+      return [
+        ...previous,
+        ...filesToAdd.map((file) => ({
+          file,
+          previewUrl: URL.createObjectURL(file),
+        })),
+      ];
     });
 
     setUploadProgress(0);
@@ -125,6 +163,7 @@ export function ImovelCreate() {
     selectedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
     setSelectedImages([]);
     setUploadProgress(0);
+    setImageError(null);
     setPrecoInput('R$ 0,00');
     reset({
       titulo: '',
@@ -157,8 +196,11 @@ export function ImovelCreate() {
 
       const createdImovelId = extractImovelId(createdImovel);
 
+      let hasImageUploadIssue = false;
+
       if (selectedImages.length > 0) {
         if (!createdImovelId) {
+          hasImageUploadIssue = true;
           setGlobalError('Imóvel cadastrado, mas não foi possível enviar as imagens neste momento.');
         } else {
           try {
@@ -174,9 +216,16 @@ export function ImovelCreate() {
                 'Imóvel cadastrado, mas o upload das imagens falhou. Tente editar o imóvel para enviar novamente.',
               ),
             );
+            hasImageUploadIssue = true;
           }
         }
       }
+
+      setSuccessMessage(
+        hasImageUploadIssue
+          ? 'Imóvel cadastrado, mas ocorreu um problema ao enviar as imagens.'
+          : 'Imóvel cadastrado com sucesso.',
+      );
 
       clearForm();
       setIsSuccessModalOpen(true);
@@ -193,7 +242,7 @@ export function ImovelCreate() {
 
   const handleSuccessClose = () => {
     setIsSuccessModalOpen(false);
-    navigate('/app', { replace: true });
+    navigate('/imoveis', { replace: true });
   };
 
   return (
@@ -284,10 +333,18 @@ export function ImovelCreate() {
 
           <div className="form-group">
             <label htmlFor="imagens">Imagens do imóvel</label>
-            <input id="imagens" type="file" accept="image/*" multiple onChange={handleImageSelection} disabled={isBusy} />
+            <input
+              id="imagens"
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp"
+              multiple
+              onChange={handleImageSelection}
+              disabled={isBusy}
+            />
             <small className="hint-text">
-              Selecione uma ou mais imagens para preview. O componente já está preparado para integração com upload.
+              {selectedImages.length} imagem(ns) selecionada(s). Máximo de {MAX_IMAGES} arquivos, até {MAX_IMAGE_SIZE_MB}MB cada.
             </small>
+            {imageError && <span className="error-text">{imageError}</span>}
           </div>
 
           {selectedImages.length > 0 && (
@@ -320,8 +377,8 @@ export function ImovelCreate() {
       {isSuccessModalOpen && (
         <div className="modal-backdrop" role="presentation">
           <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title">
-            <h2 id="success-title">Imóvel cadastrado com sucesso</h2>
-            <p>Você será redirecionado para a tela inicial.</p>
+            <h2 id="success-title">{successMessage.includes('problema') ? 'Cadastro concluído com aviso' : 'Imóvel cadastrado com sucesso'}</h2>
+            <p>{successMessage}</p>
             <button className="primary" type="button" onClick={handleSuccessClose}>
               OK
             </button>
