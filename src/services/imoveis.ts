@@ -92,9 +92,6 @@ export async function uploadImovelImages(
   });
 
   const { data } = await apiClient.post(imoveisEndpoints.uploadImages(imovelId), formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
     onUploadProgress: (event) => {
       if (!event.total) return;
       const progress = Math.round((event.loaded * 100) / event.total);
