@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { GetImoveisFilters } from '../../services/imoveis';
+import type { GetImoveisFilters } from '../../services/imoveisService';
 
 type ImoveisFiltroProps = {
   initialFilters: GetImoveisFilters;

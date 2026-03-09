@@ -34,6 +34,10 @@ export type Imovel = {
   descricao?: string;
   status: StatusImovel | string;
   createdAt?: string;
+  imagens?: Array<{
+    id: string;
+    url: string;
+  }>;
 };
 
 export type GetImoveisFilters = {

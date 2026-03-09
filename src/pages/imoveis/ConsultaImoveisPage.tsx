@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ImoveisFiltro } from '../../components/imoveis/ImoveisFiltro';
 import { ImoveisPaginacao } from '../../components/imoveis/ImoveisPaginacao';
 import { ImoveisTabela } from '../../components/imoveis/ImoveisTabela';
-import { getImoveis, type GetImoveisFilters, type Imovel } from '../../services/imoveis';
+import { getImoveis, type GetImoveisFilters, type Imovel } from '../../services/imoveisService';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -122,7 +122,18 @@ export function ConsultaImoveisPage() {
       <ImoveisFiltro initialFilters={filters} onFilter={handleFilter} onClear={handleClear} />
 
       <section className="card imoveis-list-card">
-        {isLoading && <p>Carregando imóveis...</p>}
+        {isLoading && (
+          <div className="imoveis-skeleton-grid" aria-live="polite" aria-label="Carregando imóveis">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="imoveis-skeleton-card">
+                <div className="imoveis-skeleton-image" />
+                <div className="imoveis-skeleton-line" />
+                <div className="imoveis-skeleton-line short" />
+                <div className="imoveis-skeleton-line" />
+              </div>
+            ))}
+          </div>
+        )}
 
         {!isLoading && error && <div className="global-error">{error}</div>}
 
