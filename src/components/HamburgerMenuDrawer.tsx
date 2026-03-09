@@ -20,10 +20,10 @@ export function HamburgerMenuDrawer({
         <nav>
           <p className="drawer-section-title">Imóveis</p>
           <NavLink to="/imoveis" end className={getDrawerLinkClass} onClick={onClose}>
-            Consultar imóveis
+            Consultar Imóveis
           </NavLink>
           <NavLink to="/imoveis/cadastrar" className={getDrawerLinkClass} onClick={onClose}>
-            Cadastrar imóvel
+            Cadastrar Imóvel
           </NavLink>
 
           <p className="drawer-section-title">Usuários</p>

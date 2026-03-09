@@ -493,44 +493,119 @@ textarea {
   width: auto !important;
 }
 
-.imoveis-table-wrapper {
-  width: 100%;
-  overflow-x: auto;
+.imoveis-card-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
 }
 
-.imoveis-table {
-  width: 100%;
-  min-width: 920px;
-  border-collapse: collapse;
+.imovel-card {
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.imoveis-table th,
-.imoveis-table td {
-  border-bottom: 1px solid #e2e8f0;
-  text-align: left;
-  padding: 0.6rem;
-  white-space: nowrap;
+.imovel-card-content {
+  padding: 0.9rem;
+}
+
+.imovel-card h3 {
+  margin: 0;
+}
+
+.imovel-card-meta {
+  margin: 0.3rem 0 0.6rem;
+  color: #475569;
   font-size: 0.9rem;
+}
+
+.imovel-card-description {
+  margin: 0.65rem 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: #334155;
+}
+
+.imovel-carousel {
+  position: relative;
+  background: #e2e8f0;
+  aspect-ratio: 16 / 10;
+}
+
+.imovel-carousel-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.35s ease-in-out;
+}
+
+.imovel-carousel-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #475569;
+  font-weight: 600;
+  background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 10px, #f1f5f9 10px, #f1f5f9 20px);
+}
+
+.imovel-carousel-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #fff;
+  padding: 0;
+}
+
+.imovel-carousel-nav-prev { left: 0.55rem; }
+.imovel-carousel-nav-next { right: 0.55rem; }
+
+.imovel-carousel-dots {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0.6rem;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.imovel-carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0;
+}
+
+.imovel-carousel-dot.active {
+  background: #fff;
 }
 
 .imoveis-actions {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
 }
 
 .imoveis-actions button {
   width: auto;
-  padding: 0.4rem 0.55rem;
+  padding: 0.42rem 0.55rem;
   font-size: 0.82rem;
 }
 
 button.danger {
   background: #fee2e2;
   color: #991b1b;
-}
-
-.imoveis-card-list {
-  display: none;
 }
 
 .imoveis-pagination {
@@ -551,6 +626,45 @@ button.danger {
   width: auto;
 }
 
+.imoveis-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.imoveis-skeleton-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.7rem;
+}
+
+.imoveis-skeleton-image,
+.imoveis-skeleton-line {
+  animation: pulse 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 40%, #e2e8f0 65%);
+  background-size: 200% 100%;
+  border-radius: 10px;
+}
+
+.imoveis-skeleton-image {
+  aspect-ratio: 16 / 10;
+  margin-bottom: 0.65rem;
+}
+
+.imoveis-skeleton-line {
+  height: 12px;
+  margin-bottom: 0.45rem;
+}
+
+.imoveis-skeleton-line.short {
+  width: 68%;
+}
+
+@keyframes pulse {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
 @media (max-width: 980px) {
   .imoveis-filtro-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -558,6 +672,11 @@ button.danger {
 
   .imoveis-filtro-busca {
     grid-column: span 2;
+  }
+
+  .imoveis-card-list,
+  .imoveis-skeleton-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -579,30 +698,10 @@ button.danger {
     width: 100% !important;
   }
 
-  .imoveis-table-wrapper {
-    display: none;
-  }
-
-  .imoveis-card-list {
-    display: grid;
+  .imoveis-card-list,
+  .imoveis-skeleton-grid {
+    grid-template-columns: 1fr;
     gap: 0.75rem;
-  }
-
-  .imovel-card {
-    border: 1px solid #dbeafe;
-    border-radius: 12px;
-    padding: 0.85rem;
-    background: #f8fbff;
-  }
-
-  .imovel-card h3 {
-    margin-top: 0;
-    margin-bottom: 0.4rem;
-  }
-
-  .imovel-card p {
-    margin: 0.2rem 0;
-    font-size: 0.9rem;
   }
 
   .imoveis-pagination {

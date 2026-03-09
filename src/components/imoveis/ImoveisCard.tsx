@@ -1,4 +1,5 @@
-import type { Imovel } from '../../services/imoveis';
+import type { Imovel } from '../../services/imoveisService';
+import { ImovelCarousel } from './ImovelCarousel';
 
 type ImoveisCardProps = {
   imovel: Imovel;
@@ -9,32 +10,34 @@ type ImoveisCardProps = {
 export function ImoveisCard({ imovel, formatCurrency, formatDate }: ImoveisCardProps) {
   return (
     <article className="imovel-card">
-      <h3>{imovel.titulo}</h3>
-      <p>
-        <strong>Tipo:</strong> {imovel.tipo}
-      </p>
-      <p>
-        <strong>Finalidade:</strong> {imovel.finalidade}
-      </p>
-      <p>
-        <strong>Bairro:</strong> {imovel.bairro}
-      </p>
-      <p>
-        <strong>Cidade:</strong> {imovel.cidade}
-      </p>
-      <p>
-        <strong>Preço:</strong> {formatCurrency(imovel.preco)}
-      </p>
-      <p>
-        <strong>Status:</strong> {imovel.status}
-      </p>
-      <p>
-        <strong>Cadastro:</strong> {formatDate(imovel.createdAt)}
-      </p>
-      <div className="imoveis-actions">
-        <button type="button" className="secondary">Visualizar</button>
-        <button type="button" className="secondary">Editar</button>
-        <button type="button" className="secondary danger">Excluir</button>
+      <ImovelCarousel imagens={imovel.imagens ?? []} titulo={imovel.titulo} />
+
+      <div className="imovel-card-content">
+        <h3>{imovel.titulo}</h3>
+        <p className="imovel-card-meta">
+          {imovel.tipo} • {imovel.finalidade}
+        </p>
+
+        <p>
+          <strong>Local:</strong> {imovel.bairro} - {imovel.cidade}
+        </p>
+        <p>
+          <strong>Preço:</strong> {formatCurrency(imovel.preco)}
+        </p>
+        <p>
+          <strong>Status:</strong> {imovel.status}
+        </p>
+        <p>
+          <strong>Cadastro:</strong> {formatDate(imovel.createdAt)}
+        </p>
+
+        {imovel.descricao && <p className="imovel-card-description">{imovel.descricao}</p>}
+
+        <div className="imoveis-actions">
+          <button type="button" className="secondary">Visualizar</button>
+          <button type="button" className="secondary">Editar</button>
+          <button type="button" className="secondary danger">Excluir</button>
+        </div>
       </div>
     </article>
   );
