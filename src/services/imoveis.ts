@@ -78,7 +78,7 @@ export async function createImovelWithImages(payload: CreateImovelPayload, files
   formData.append('status', payload.status);
 
   files.forEach((file) => {
-    formData.append('imagens', file);
+    formData.append('images', file);
   });
 
   const { data } = await apiClient.post<CreateImovelResponse>(imoveisEndpoints.create, formData);
@@ -108,7 +108,7 @@ export async function uploadImovelImages(
   const formData = new FormData();
 
   files.forEach((file) => {
-    formData.append('imagens', file);
+    formData.append('images', file);
   });
 
   const { data } = await apiClient.post(imoveisEndpoints.uploadImages(imovelId), formData, {
