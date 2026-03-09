@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { createImovel, createImovelWithImages, extractImovelId, uploadImovelImages } from '../../services/imoveis';
+import { createImovelWithImages } from '../../services/imoveis';
 import { toFriendlyError } from '../../utils/errorMessages';
 
 const tiposDeImovel = ['Apartamento', 'Casa', 'Sobrado', 'Terreno', 'Comercial', 'Outro'] as const;
@@ -179,6 +179,12 @@ export function ImovelCreate() {
 
   const onSubmit = async (data: ImovelFormData) => {
     setGlobalError(null);
+    setImageError(null);
+
+    if (selectedImages.length === 0) {
+      setImageError('Adicione pelo menos uma imagem do imóvel para concluir o cadastro.');
+      return;
+    }
 
     try {
       const precoNumber = parseCurrencyToNumber(precoInput);
@@ -196,48 +202,9 @@ export function ImovelCreate() {
 
       const selectedImageFiles = selectedImages.map((image) => image.file);
 
-      let hasImageUploadIssue = false;
-      let hasUploadedImagesOnCreate = false;
-      let createdImovel;
-
-      if (selectedImageFiles.length > 0) {
-        try {
-          createdImovel = await createImovelWithImages(payload, selectedImageFiles);
-          setUploadProgress(100);
-          hasUploadedImagesOnCreate = true;
-        } catch {
-          createdImovel = await createImovel(payload);
-        }
-      } else {
-        createdImovel = await createImovel(payload);
-      }
-
-      const createdImovelId = extractImovelId(createdImovel);
-
-      if (selectedImageFiles.length > 0 && !hasUploadedImagesOnCreate) {
-        if (!createdImovelId) {
-          hasImageUploadIssue = true;
-          setGlobalError('Imóvel cadastrado, mas não foi possível enviar as imagens neste momento.');
-        } else {
-          try {
-            await uploadImovelImages(createdImovelId, selectedImageFiles, setUploadProgress);
-          } catch (uploadError) {
-            setGlobalError(
-              toFriendlyError(
-                uploadError,
-                'Imóvel cadastrado, mas o upload das imagens falhou. Tente editar o imóvel para enviar novamente.',
-              ),
-            );
-            hasImageUploadIssue = true;
-          }
-        }
-      }
-
-      setSuccessMessage(
-        hasImageUploadIssue
-          ? 'Imóvel cadastrado, mas ocorreu um problema ao enviar as imagens.'
-          : 'Imóvel cadastrado com sucesso.',
-      );
+      await createImovelWithImages(payload, selectedImageFiles);
+      setUploadProgress(100);
+      setSuccessMessage('Imóvel cadastrado com sucesso.');
 
       clearForm();
       setIsSuccessModalOpen(true);
@@ -354,7 +321,7 @@ export function ImovelCreate() {
               disabled={isBusy}
             />
             <small className="hint-text">
-              {selectedImages.length} imagem(ns) selecionada(s). Máximo de {MAX_IMAGES} arquivos, até {MAX_IMAGE_SIZE_MB}MB cada.
+              {selectedImages.length} imagem(ns) selecionada(s). Mínimo de 1 imagem e máximo de {MAX_IMAGES} arquivos, até {MAX_IMAGE_SIZE_MB}MB cada.
             </small>
             {imageError && <span className="error-text">{imageError}</span>}
           </div>
@@ -389,7 +356,7 @@ export function ImovelCreate() {
       {isSuccessModalOpen && (
         <div className="modal-backdrop" role="presentation">
           <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title">
-            <h2 id="success-title">{successMessage.includes('problema') ? 'Cadastro concluído com aviso' : 'Imóvel cadastrado com sucesso'}</h2>
+            <h2 id="success-title">Imóvel cadastrado com sucesso</h2>
             <p>{successMessage}</p>
             <button className="primary" type="button" onClick={handleSuccessClose}>
               OK
