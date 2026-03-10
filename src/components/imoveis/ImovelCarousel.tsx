@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ImagemImovel } from '../../services/imoveisService';
-import { getImovelImagemPrincipal, orderImagensByCapa } from '../../utils/imovelImages';
+import { getImovelImagemPrincipal, orderImagensByCapa, resolveImageSrc } from '../../utils/imovelImages';
 
 type ImovelCarouselProps = {
   imagens: ImagemImovel[];
@@ -52,7 +52,7 @@ export function ImovelCarousel({ imagens, titulo }: ImovelCarouselProps) {
       {currentImage && (
         <>
           <img
-            src={currentImage.url}
+            src={resolveImageSrc(currentImage.url)}
             alt={`${titulo} - foto ${currentIndex + 1}`}
             className="imovel-carousel-image"
             loading="lazy"
