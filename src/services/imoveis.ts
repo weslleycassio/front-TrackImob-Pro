@@ -8,6 +8,7 @@ export type TipoImovel = 'Apartamento' | 'Casa' | 'Sobrado' | 'Terreno' | 'Comer
 export type ImagemImovel = {
   id: string;
   url: string;
+  key?: string;
   capa: boolean;
   ordem: number;
 };
@@ -50,6 +51,13 @@ export type Imovel = {
   imagens: ImagemImovel[];
 };
 
+type RawImovel = Omit<Imovel, 'imagens'> & {
+  imagens?: ImagemImovel[] | null;
+  imagem?: string;
+  foto?: string;
+  image?: string;
+};
+
 export type GetImoveisFilters = {
   busca?: string;
   cidade?: string;
@@ -69,6 +77,51 @@ export type GetImoveisResponse = {
   page?: number;
   limit?: number;
 };
+
+type RawGetImoveisResponse =
+  | {
+      data?: RawImovel[];
+      total?: number;
+      page?: number;
+      limit?: number;
+    }
+  | RawImovel[];
+
+function normalizeImagens(rawImovel: RawImovel): ImagemImovel[] {
+  if (Array.isArray(rawImovel.imagens) && rawImovel.imagens.length > 0) {
+    return rawImovel.imagens
+      .filter((imagem): imagem is ImagemImovel => Boolean(imagem?.id && imagem?.url))
+      .sort((a, b) => {
+        if (a.capa !== b.capa) {
+          return a.capa ? -1 : 1;
+        }
+
+        return a.ordem - b.ordem;
+      });
+  }
+
+  const fallbackUrl = rawImovel.imagem ?? rawImovel.foto ?? rawImovel.image;
+
+  if (!fallbackUrl) {
+    return [];
+  }
+
+  return [
+    {
+      id: `fallback-${rawImovel.id}`,
+      url: fallbackUrl,
+      capa: true,
+      ordem: 0,
+    },
+  ];
+}
+
+function normalizeImovel(rawImovel: RawImovel): Imovel {
+  return {
+    ...rawImovel,
+    imagens: normalizeImagens(rawImovel),
+  };
+}
 
 export async function createImovel(payload: CreateImovelPayload) {
   const { data } = await apiClient.post<CreateImovelResponse>(imoveisEndpoints.create, payload);
@@ -98,13 +151,26 @@ export async function getImoveis(filters: GetImoveisFilters = {}) {
     params.set(key, String(value));
   });
 
-  const { data } = await apiClient.get<GetImoveisResponse>(imoveisEndpoints.list, { params });
-  return data;
+  const { data } = await apiClient.get<RawGetImoveisResponse>(imoveisEndpoints.list, { params });
+
+  if (Array.isArray(data)) {
+    return {
+      data: data.map(normalizeImovel),
+      total: data.length,
+      page: filters.page,
+      limit: filters.limit,
+    } satisfies GetImoveisResponse;
+  }
+
+  return {
+    ...data,
+    data: (data.data ?? []).map(normalizeImovel),
+  } satisfies GetImoveisResponse;
 }
 
 export async function getImovelById(imovelId: string | number) {
-  const { data } = await apiClient.get<Imovel>(imoveisEndpoints.detail(imovelId));
-  return data;
+  const { data } = await apiClient.get<RawImovel>(imoveisEndpoints.detail(imovelId));
+  return normalizeImovel(data);
 }
 
 export async function uploadImovelImages(
