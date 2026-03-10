@@ -1,7 +1,5 @@
-import { useMemo } from 'react';
 import type { Imovel } from '../../services/imoveisService';
 import { ImovelCarousel } from './ImovelCarousel';
-import { getImovelImagemPrincipal } from '../../utils/imovelImages';
 
 type ImoveisCardProps = {
   imovel: Imovel;
@@ -10,12 +8,6 @@ type ImoveisCardProps = {
 };
 
 export function ImoveisCard({ imovel, formatCurrency, formatDate }: ImoveisCardProps) {
-  const imagemPrincipal = useMemo(() => getImovelImagemPrincipal(imovel.imagens), [imovel.imagens]);
-
-  console.log('[ImoveisCard] Imóvel:', imovel);
-  console.log('[ImoveisCard] Campo imagens:', imovel.imagens);
-  console.log('[ImoveisCard] Imagem principal resolvida:', imagemPrincipal);
-
   return (
     <article className="imovel-card">
       <ImovelCarousel imagens={imovel.imagens ?? []} titulo={imovel.titulo} />

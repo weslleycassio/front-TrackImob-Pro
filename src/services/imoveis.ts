@@ -87,6 +87,10 @@ type RawGetImoveisResponse =
     }
   | RawImovel[];
 
+function getUploadableFiles(files: File[]) {
+  return files.filter((file) => file instanceof File && file.size > 0);
+}
+
 function normalizeImagens(rawImovel: RawImovel): ImagemImovel[] {
   if (Array.isArray(rawImovel.imagens) && rawImovel.imagens.length > 0) {
     return rawImovel.imagens
@@ -131,12 +135,13 @@ export async function createImovel(payload: CreateImovelPayload) {
 export async function createImovelWithImages(payload: CreateImovelPayload, files: File[]) {
   const createResponse = await createImovel(payload);
   const imovelId = extractImovelId(createResponse);
+  const uploadableFiles = getUploadableFiles(files);
 
-  if (!imovelId || files.length === 0) {
+  if (!imovelId || uploadableFiles.length === 0) {
     return createResponse;
   }
 
-  await uploadImovelImages(imovelId, files);
+  await uploadImovelImages(imovelId, uploadableFiles);
   return createResponse;
 }
 
@@ -178,19 +183,22 @@ export async function uploadImovelImages(
   files: File[],
   onUploadProgress?: (progress: number) => void,
 ) {
+  const uploadableFiles = getUploadableFiles(files);
+
+  if (uploadableFiles.length === 0) {
+    return null;
+  }
+
   const formData = new FormData();
 
-  files.forEach((file) => {
+  uploadableFiles.forEach((file) => {
     formData.append('imagens', file);
   });
 
-  console.log('[ImovelUpload] FormData files', files.map((file) => ({
-    name: file.name,
-    size: file.size,
-    type: file.type,
-  })));
-
   const { data } = await apiClient.post(imoveisEndpoints.uploadImages(imovelId), formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
     onUploadProgress: (event) => {
       if (!event.total) return;
       const progress = Math.round((event.loaded * 100) / event.total);

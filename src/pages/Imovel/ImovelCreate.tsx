@@ -181,7 +181,9 @@ export function ImovelCreate() {
     setGlobalError(null);
     setImageError(null);
 
-    const selectedImageFiles = selectedImages.map((image) => image.file);
+    const selectedImageFiles = selectedImages
+      .map((image) => image.file)
+      .filter((file) => file instanceof File && file.size > 0);
 
     try {
       const precoNumber = parseCurrencyToNumber(precoInput);
@@ -198,11 +200,7 @@ export function ImovelCreate() {
       };
 
       const createdImovel = await createImovel(payload);
-      console.log('[ImovelCreate] Resposta do POST /imoveis:', createdImovel);
-
       const imovelId = extractImovelId(createdImovel);
-      console.log('[ImovelCreate] ID usado para upload:', imovelId);
-      console.log('[ImovelCreate] Quantidade de imagens selecionadas:', selectedImageFiles.length);
 
       if (!selectedImageFiles.length) {
         setUploadProgress(100);
@@ -221,8 +219,7 @@ export function ImovelCreate() {
         await uploadImovelImages(imovelId, selectedImageFiles, (progress) => setUploadProgress(progress));
         setUploadProgress(100);
         setSuccessMessage('Imóvel e imagens cadastrados com sucesso.');
-      } catch (uploadError) {
-        console.error('[ImovelCreate] Erro no upload de imagens:', uploadError);
+      } catch {
         setUploadProgress(0);
         setSuccessMessage('Imóvel cadastrado com sucesso, mas houve falha no upload das imagens.');
       }
@@ -230,7 +227,6 @@ export function ImovelCreate() {
       clearForm();
       setIsSuccessModalOpen(true);
     } catch (error) {
-      console.error('[ImovelCreate] Erro no cadastro do imóvel:', error);
       setGlobalError(toFriendlyError(error, 'Não foi possível cadastrar o imóvel. Verifique os dados e tente novamente.'));
     }
   };
