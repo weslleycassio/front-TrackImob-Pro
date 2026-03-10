@@ -49,6 +49,8 @@ export function ConsultaImoveisPage() {
 
     try {
       const response = await getImoveis(filters);
+      console.log('[ConsultaImoveisPage] Resposta bruta de imóveis:', response);
+      console.log('[ConsultaImoveisPage] Lista de imóveis recebida:', response.data ?? []);
       setImoveis(response.data ?? []);
       setTotal(response.total);
     } catch {
