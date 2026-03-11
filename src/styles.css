@@ -59,6 +59,12 @@ button {
   font-size: 0.95rem;
   cursor: pointer;
 }
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 button.primary {
   width: 100%;
   color: white;
@@ -469,6 +475,150 @@ textarea {
   margin-bottom: 1rem;
 }
 
+.imovel-detail-card {
+  width: min(100%, 1120px);
+  margin-inline: auto;
+}
+
+.imovel-detail-header {
+  align-items: flex-start;
+}
+
+.imovel-detail-subtitle {
+  margin: 0.25rem 0 0;
+  color: #475569;
+}
+
+.imovel-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.7rem;
+}
+
+.imovel-detail-actions button {
+  width: auto;
+}
+
+.imovel-detail-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.imovel-detail-carousel .imovel-carousel {
+  border-radius: 16px;
+  overflow: hidden;
+  min-height: 320px;
+}
+
+.imovel-detail-summary {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 1.2rem;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #f8fbff 0%, #f0f9ff 100%);
+}
+
+.imovel-detail-summary h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.15;
+}
+
+.imovel-detail-status {
+  align-self: flex-start;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.imovel-detail-status.is-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.imovel-detail-status.is-inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.imovel-detail-price {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #0f234f;
+}
+
+.imovel-detail-purpose {
+  margin: 0;
+  font-size: 1rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.imovel-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.imovel-detail-section {
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  padding: 1rem;
+  background: #fff;
+}
+
+.imovel-detail-section h2 {
+  margin-top: 0;
+  margin-bottom: 0.85rem;
+  font-size: 1.05rem;
+}
+
+.imovel-detail-list {
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.imovel-detail-list div {
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.imovel-detail-list div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.imovel-detail-list dt {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 0.2rem;
+}
+
+.imovel-detail-list dd {
+  margin: 0;
+  color: #0f172a;
+}
+
+.imovel-detail-description {
+  margin: 0;
+  color: #334155;
+  white-space: pre-wrap;
+}
+
 .imoveis-create-btn {
   width: auto !important;
 }
@@ -603,6 +753,20 @@ textarea {
   font-size: 0.82rem;
 }
 
+.imoveis-modal-description {
+  min-height: 112px;
+}
+
+.imoveis-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+}
+
+.imoveis-modal-actions button {
+  width: auto;
+}
+
 button.danger {
   background: #fee2e2;
   color: #991b1b;
@@ -666,6 +830,14 @@ button.danger {
 }
 
 @media (max-width: 980px) {
+  .imovel-detail-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .imovel-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .imoveis-filtro-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -681,6 +853,24 @@ button.danger {
 }
 
 @media (max-width: 760px) {
+  .imovel-detail-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .imovel-detail-actions {
+    justify-content: stretch;
+    flex-direction: column;
+  }
+
+  .imovel-detail-actions button {
+    width: 100%;
+  }
+
+  .imovel-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
   .imoveis-filtro-grid {
     grid-template-columns: 1fr;
   }

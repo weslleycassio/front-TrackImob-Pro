@@ -4,6 +4,23 @@ import { imoveisEndpoints } from '../api/endpoints/imoveis';
 export type FinalidadeImovel = 'Venda' | 'Locação';
 export type StatusImovel = 'ATIVO' | 'INATIVO';
 export type TipoImovel = 'Apartamento' | 'Casa' | 'Sobrado' | 'Terreno' | 'Comercial' | 'Outro';
+export const motivoInativacaoImovelOptions = [
+  { value: 'VENDA_CONCLUIDA', label: 'Venda concluída' },
+  { value: 'VENDA_OUTRA_IMOBILIARIA', label: 'Venda por outra imobiliária' },
+  { value: 'ALUGADO', label: 'Alugado' },
+  { value: 'ALUGADO_OUTRA_IMOBILIARIA', label: 'Alugado por outra imobiliária' },
+  { value: 'DESISTIU_DA_VENDA', label: 'Desistiu da venda' },
+  { value: 'DESISTIU_DA_LOCACAO', label: 'Desistiu da locação' },
+  { value: 'OUTRO', label: 'Outro' },
+] as const;
+
+export type MotivoInativacaoImovel = (typeof motivoInativacaoImovelOptions)[number]['value'];
+
+export type InativarImovelPayload = {
+  motivo: MotivoInativacaoImovel;
+  descricao?: string;
+  responsavelFechamentoId?: string | number;
+};
 
 export type ImagemImovel = {
   id: string;
@@ -48,14 +65,30 @@ export type Imovel = {
   descricao?: string;
   status: StatusImovel | string;
   createdAt?: string;
+  updatedAt?: string;
+  responsavelId?: string | number;
   imagens: ImagemImovel[];
 };
 
-type RawImovel = Omit<Imovel, 'imagens'> & {
+type RawPessoaRelacionada = {
+  id?: string | number;
+  userId?: string | number;
+  usuarioId?: string | number;
+  corretorId?: string | number;
+};
+
+type RawImovel = Omit<Imovel, 'imagens' | 'responsavelId'> & {
   imagens?: ImagemImovel[] | null;
   imagem?: string;
   foto?: string;
   image?: string;
+  responsavelId?: string | number;
+  corretorResponsavelId?: string | number;
+  corretorId?: string | number;
+  usuarioId?: string | number;
+  userId?: string | number;
+  responsavel?: RawPessoaRelacionada | null;
+  corretor?: RawPessoaRelacionada | null;
 };
 
 export type GetImoveisFilters = {
@@ -86,6 +119,12 @@ type RawGetImoveisResponse =
       limit?: number;
     }
   | RawImovel[];
+
+type RawGetImovelByIdResponse =
+  | {
+      data?: RawImovel;
+    }
+  | RawImovel;
 
 function getUploadableFiles(files: File[]) {
   return files.filter((file) => file instanceof File && file.size > 0);
@@ -123,6 +162,20 @@ function normalizeImagens(rawImovel: RawImovel): ImagemImovel[] {
 function normalizeImovel(rawImovel: RawImovel): Imovel {
   return {
     ...rawImovel,
+    responsavelId:
+      rawImovel.responsavelId ??
+      rawImovel.corretorResponsavelId ??
+      rawImovel.corretorId ??
+      rawImovel.usuarioId ??
+      rawImovel.userId ??
+      rawImovel.responsavel?.id ??
+      rawImovel.responsavel?.userId ??
+      rawImovel.responsavel?.usuarioId ??
+      rawImovel.responsavel?.corretorId ??
+      rawImovel.corretor?.id ??
+      rawImovel.corretor?.userId ??
+      rawImovel.corretor?.usuarioId ??
+      rawImovel.corretor?.corretorId,
     imagens: normalizeImagens(rawImovel),
   };
 }
@@ -174,8 +227,18 @@ export async function getImoveis(filters: GetImoveisFilters = {}) {
 }
 
 export async function getImovelById(imovelId: string | number) {
-  const { data } = await apiClient.get<RawImovel>(imoveisEndpoints.detail(imovelId));
-  return normalizeImovel(data);
+  const { data } = await apiClient.get<RawGetImovelByIdResponse>(imoveisEndpoints.detail(imovelId));
+  const rawImovel = (data as { data?: RawImovel }).data ?? (data as RawImovel);
+
+  return normalizeImovel(rawImovel);
+}
+
+export async function inativarImovel(imovelId: string | number, payload: InativarImovelPayload) {
+  const { data } = await apiClient.delete(imoveisEndpoints.detail(imovelId), {
+    data: payload,
+  });
+
+  return data;
 }
 
 export async function uploadImovelImages(

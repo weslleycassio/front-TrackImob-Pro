@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import type { User } from '../../api/types';
+import { getUsersRequest } from '../../api/usersService';
+import { InativarImovelModal } from '../../components/imoveis/InativarImovelModal';
 import { ImoveisFiltro } from '../../components/imoveis/ImoveisFiltro';
 import { ImoveisPaginacao } from '../../components/imoveis/ImoveisPaginacao';
 import { ImoveisTabela } from '../../components/imoveis/ImoveisTabela';
-import { getImoveis, type GetImoveisFilters, type Imovel } from '../../services/imoveisService';
+import {
+  getImoveis,
+  inativarImovel,
+  type GetImoveisFilters,
+  type Imovel,
+  type InativarImovelPayload,
+} from '../../services/imoveisService';
+import { useAuth } from '../../auth/useAuth';
+import { toFriendlyError } from '../../utils/errorMessages';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -35,11 +47,19 @@ function mapSearchParamsToFilters(searchParams: URLSearchParams): GetImoveisFilt
 
 export function ConsultaImoveisPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [total, setTotal] = useState<number | undefined>(undefined);
+  const [selectedImovel, setSelectedImovel] = useState<Imovel | null>(null);
+  const [isInactivating, setIsInactivating] = useState(false);
+  const [inactivationError, setInactivationError] = useState<string | null>(null);
+  const [usuariosFechamento, setUsuariosFechamento] = useState<User[]>([]);
+  const [isLoadingUsuariosFechamento, setIsLoadingUsuariosFechamento] = useState(false);
+  const [usuariosFechamentoError, setUsuariosFechamentoError] = useState<string | null>(null);
 
   const filters = useMemo(() => mapSearchParamsToFilters(searchParams), [searchParams]);
 
@@ -108,6 +128,99 @@ export function ConsultaImoveisPage() {
     });
   };
 
+  const canInativarImovel = (imovel: Imovel) => {
+    if (!user) {
+      return false;
+    }
+
+    if (user.role === 'ADMIN') {
+      return true;
+    }
+
+    if (imovel.responsavelId === undefined || imovel.responsavelId === null) {
+      return false;
+    }
+
+    return String(imovel.responsavelId) === String(user.id);
+  };
+
+  const loadUsuariosFechamento = useCallback(async () => {
+    setIsLoadingUsuariosFechamento(true);
+    setUsuariosFechamentoError(null);
+
+    try {
+      const response = await getUsersRequest();
+      setUsuariosFechamento(response.data.filter((usuario) => usuario.role === 'ADMIN' || usuario.role === 'CORRETOR'));
+    } catch (apiError) {
+      setUsuariosFechamento([]);
+      setUsuariosFechamentoError(
+        toFriendlyError(apiError, 'Não foi possível carregar os usuários para o fechamento do imóvel.'),
+      );
+    } finally {
+      setIsLoadingUsuariosFechamento(false);
+    }
+  }, []);
+
+  const openInactivationModal = (imovel: Imovel) => {
+    setSuccessMessage(null);
+    setInactivationError(null);
+    setSelectedImovel(imovel);
+
+    if (!usuariosFechamento.length && !isLoadingUsuariosFechamento) {
+      loadUsuariosFechamento();
+    }
+  };
+
+  const handleVisualizarImovel = (imovel: Imovel) => {
+    navigate(`/imoveis/${imovel.id}`);
+  };
+
+  const closeInactivationModal = () => {
+    if (isInactivating) {
+      return;
+    }
+
+    setSelectedImovel(null);
+    setInactivationError(null);
+  };
+
+  const handleConfirmInactivation = async (payload: InativarImovelPayload) => {
+    if (!selectedImovel) {
+      return;
+    }
+
+    setSuccessMessage(null);
+    setInactivationError(null);
+    setIsInactivating(true);
+
+    try {
+      await inativarImovel(selectedImovel.id, payload);
+      setSuccessMessage('Imóvel inativado com sucesso.');
+      setSelectedImovel(null);
+
+      const currentPage = filters.page || DEFAULT_PAGE;
+      const shouldGoToPreviousPage = currentPage > 1 && imoveis.length === 1;
+
+      if (shouldGoToPreviousPage) {
+        updateParams({
+          ...filters,
+          page: currentPage - 1,
+          limit: filters.limit || DEFAULT_LIMIT,
+        });
+      } else {
+        await loadImoveis();
+      }
+    } catch (apiError) {
+      if (axios.isAxiosError(apiError) && apiError.response?.status === 403) {
+        setInactivationError('Você não tem permissão para inativar este imóvel.');
+      } else {
+        setInactivationError(toFriendlyError(apiError, 'Não foi possível inativar o imóvel. Tente novamente.'));
+      }
+    } finally {
+      setIsInactivating(false);
+    }
+  };
+
   return (
     <main className="content-page">
       <section className="card imoveis-header-card">
@@ -122,6 +235,8 @@ export function ConsultaImoveisPage() {
       <ImoveisFiltro initialFilters={filters} onFilter={handleFilter} onClear={handleClear} />
 
       <section className="card imoveis-list-card">
+        {successMessage && <div className="global-success">{successMessage}</div>}
+
         {isLoading && (
           <div className="imoveis-skeleton-grid" aria-live="polite" aria-label="Carregando imóveis">
             {Array.from({ length: 6 }).map((_, index) => (
@@ -145,6 +260,9 @@ export function ConsultaImoveisPage() {
               imoveis={imoveis}
               formatCurrency={(value) => currencyFormatter.format(value)}
               formatDate={(date) => (date ? dateFormatter.format(new Date(date)) : '-')}
+              canInativar={canInativarImovel}
+              onVisualizar={handleVisualizarImovel}
+              onInativar={openInactivationModal}
             />
             <ImoveisPaginacao
               page={filters.page || DEFAULT_PAGE}
@@ -155,6 +273,17 @@ export function ConsultaImoveisPage() {
           </>
         )}
       </section>
+
+      <InativarImovelModal
+        imovel={selectedImovel}
+        usuariosFechamento={usuariosFechamento}
+        isLoadingUsuariosFechamento={isLoadingUsuariosFechamento}
+        usuariosFechamentoError={usuariosFechamentoError}
+        isSubmitting={isInactivating}
+        error={inactivationError}
+        onCancel={closeInactivationModal}
+        onConfirm={handleConfirmInactivation}
+      />
     </main>
   );
 }

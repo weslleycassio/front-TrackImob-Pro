@@ -5,9 +5,21 @@ type ImoveisCardProps = {
   imovel: Imovel;
   formatCurrency: (value: number) => string;
   formatDate: (date?: string) => string;
+  canInativar: boolean;
+  onVisualizar: (imovel: Imovel) => void;
+  onInativar: (imovel: Imovel) => void;
 };
 
-export function ImoveisCard({ imovel, formatCurrency, formatDate }: ImoveisCardProps) {
+export function ImoveisCard({
+  imovel,
+  formatCurrency,
+  formatDate,
+  canInativar,
+  onVisualizar,
+  onInativar,
+}: ImoveisCardProps) {
+  const isInativo = String(imovel.status).toUpperCase() === 'INATIVO';
+
   return (
     <article className="imovel-card">
       <ImovelCarousel imagens={imovel.imagens ?? []} titulo={imovel.titulo} />
@@ -34,9 +46,23 @@ export function ImoveisCard({ imovel, formatCurrency, formatDate }: ImoveisCardP
         {imovel.descricao && <p className="imovel-card-description">{imovel.descricao}</p>}
 
         <div className="imoveis-actions">
-          <button type="button" className="secondary">Visualizar</button>
-          <button type="button" className="secondary">Editar</button>
-          <button type="button" className="secondary danger">Excluir</button>
+          <button type="button" className="secondary" onClick={() => onVisualizar(imovel)}>
+            Visualizar
+          </button>
+          <button type="button" className="secondary" disabled title="Edição ainda não disponível">
+            Editar
+          </button>
+          {canInativar && (
+            <button
+              type="button"
+              className="secondary danger"
+              onClick={() => onInativar(imovel)}
+              disabled={isInativo}
+              title={isInativo ? 'Imóvel já está inativo' : undefined}
+            >
+              Inativar
+            </button>
+          )}
         </div>
       </div>
     </article>
