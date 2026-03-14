@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { User } from '../../api/types';
-import { getUsersRequest } from '../../api/usersService';
+import { getBrokerAndAdminUsersRequest } from '../../api/usersService';
 import { useAuth } from '../../auth/useAuth';
+import { ImovelMidiasExternasSheet } from '../../components/imoveis/ImovelMidiasExternasSheet';
 import { InativarImovelModal } from '../../components/imoveis/InativarImovelModal';
 import { ImovelCarousel } from '../../components/imoveis/ImovelCarousel';
 import {
@@ -24,6 +25,8 @@ const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
   timeStyle: 'short',
 });
 
+const hasPositiveNumber = (value?: number | null) => typeof value === 'number' && Number.isFinite(value) && value > 0;
+
 export function VisualizarImovelPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -33,6 +36,7 @@ export function VisualizarImovelPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isInactivationModalOpen, setIsInactivationModalOpen] = useState(false);
+  const [isMidiasExternasOpen, setIsMidiasExternasOpen] = useState(false);
   const [isInactivating, setIsInactivating] = useState(false);
   const [inactivationError, setInactivationError] = useState<string | null>(null);
   const [usuariosFechamento, setUsuariosFechamento] = useState<User[]>([]);
@@ -42,10 +46,11 @@ export function VisualizarImovelPage() {
   const isInativo = String(imovel?.status).toUpperCase() === 'INATIVO';
   const precoFormatado =
     typeof imovel?.preco === 'number' && Number.isFinite(imovel.preco) ? currencyFormatter.format(imovel.preco) : '-';
+  const corretorCaptadorNome = imovel?.corretorCaptador?.nome || '-';
 
   const loadImovel = useCallback(async () => {
     if (!id) {
-      setError('Imóvel não encontrado.');
+      setError('Imovel nao encontrado.');
       setImovel(null);
       setIsLoading(false);
       return;
@@ -59,9 +64,9 @@ export function VisualizarImovelPage() {
       setImovel(response);
     } catch (apiError) {
       if (axios.isAxiosError(apiError) && apiError.response?.status === 404) {
-        setError('Imóvel não encontrado.');
+        setError('Imovel nao encontrado.');
       } else {
-        setError(toFriendlyError(apiError, 'Não foi possível carregar os dados do imóvel.'));
+        setError(toFriendlyError(apiError, 'Nao foi possivel carregar os dados do imovel.'));
       }
       setImovel(null);
     } finally {
@@ -94,12 +99,12 @@ export function VisualizarImovelPage() {
     setUsuariosFechamentoError(null);
 
     try {
-      const response = await getUsersRequest();
-      setUsuariosFechamento(response.data.filter((usuario) => usuario.role === 'ADMIN' || usuario.role === 'CORRETOR'));
+      const usuarios = await getBrokerAndAdminUsersRequest();
+      setUsuariosFechamento(usuarios);
     } catch (apiError) {
       setUsuariosFechamento([]);
       setUsuariosFechamentoError(
-        toFriendlyError(apiError, 'Não foi possível carregar os usuários para o fechamento do imóvel.'),
+        toFriendlyError(apiError, 'Nao foi possivel carregar os usuarios para o fechamento do imovel.'),
       );
     } finally {
       setIsLoadingUsuariosFechamento(false);
@@ -129,6 +134,14 @@ export function VisualizarImovelPage() {
     setInactivationError(null);
   };
 
+  const openMidiasExternas = () => {
+    setIsMidiasExternasOpen(true);
+  };
+
+  const closeMidiasExternas = () => {
+    setIsMidiasExternasOpen(false);
+  };
+
   const handleConfirmInactivation = async (payload: InativarImovelPayload) => {
     if (!imovel) {
       return;
@@ -140,14 +153,14 @@ export function VisualizarImovelPage() {
 
     try {
       await inativarImovel(imovel.id, payload);
-      setSuccessMessage('Imóvel inativado com sucesso.');
+      setSuccessMessage('Imovel inativado com sucesso.');
       setIsInactivationModalOpen(false);
       await loadImovel();
     } catch (apiError) {
       if (axios.isAxiosError(apiError) && apiError.response?.status === 403) {
-        setInactivationError('Você não tem permissão para inativar este imóvel.');
+        setInactivationError('Voce nao tem permissao para inativar este imovel.');
       } else {
-        setInactivationError(toFriendlyError(apiError, 'Não foi possível inativar o imóvel. Tente novamente.'));
+        setInactivationError(toFriendlyError(apiError, 'Nao foi possivel inativar o imovel. Tente novamente.'));
       }
     } finally {
       setIsInactivating(false);
@@ -158,7 +171,7 @@ export function VisualizarImovelPage() {
     return (
       <main className="content-page">
         <section className="card imovel-detail-card">
-          <p>Carregando imóvel...</p>
+          <p>Carregando imovel...</p>
         </section>
       </main>
     );
@@ -169,13 +182,13 @@ export function VisualizarImovelPage() {
       <main className="content-page">
         <section className="card imovel-detail-card">
           <div className="row page-header-row">
-            <h1>Visualizar Imóvel</h1>
+            <h1>Visualizar Imovel</h1>
             <button type="button" className="secondary" onClick={() => navigate('/imoveis')}>
               Voltar para listagem
             </button>
           </div>
 
-          <div className="global-error">{error ?? 'Imóvel não encontrado.'}</div>
+          <div className="global-error">{error ?? 'Imovel nao encontrado.'}</div>
         </section>
       </main>
     );
@@ -186,13 +199,16 @@ export function VisualizarImovelPage() {
       <section className="card imovel-detail-card">
         <div className="row page-header-row imovel-detail-header">
           <div>
-            <h1>Visualizar Imóvel</h1>
-            <p className="imovel-detail-subtitle">{imovel.titulo || 'Imóvel sem título'}</p>
+            <h1>Visualizar Imovel</h1>
+            <p className="imovel-detail-subtitle">{imovel.titulo || 'Imovel sem titulo'}</p>
           </div>
 
           <div className="imovel-detail-actions">
-            <button type="button" className="secondary" disabled title="Edição ainda não disponível">
-              Editar imóvel
+            <button type="button" className="secondary" disabled title="Edicao ainda nao disponivel">
+              Editar imovel
+            </button>
+            <button type="button" className="secondary" onClick={openMidiasExternas}>
+              Midias externas
             </button>
             {canInativarImovel && (
               <button
@@ -200,9 +216,9 @@ export function VisualizarImovelPage() {
                 className="secondary danger"
                 onClick={openInactivationModal}
                 disabled={isInativo}
-                title={isInativo ? 'Imóvel já está inativo' : undefined}
+                title={isInativo ? 'Imovel ja esta inativo' : undefined}
               >
-                Inativar imóvel
+                Inativar imovel
               </button>
             )}
             <button type="button" className="secondary" onClick={() => navigate('/imoveis')}>
@@ -215,12 +231,12 @@ export function VisualizarImovelPage() {
 
         <div className="imovel-detail-hero">
           <div className="imovel-detail-carousel">
-            <ImovelCarousel imagens={imovel.imagens ?? []} titulo={imovel.titulo || 'Imóvel'} />
+            <ImovelCarousel imagens={imovel.imagens ?? []} titulo={imovel.titulo || 'Imovel'} />
           </div>
 
           <aside className="imovel-detail-summary">
             <span className={`imovel-detail-status ${isInativo ? 'is-inactive' : 'is-active'}`}>{imovel.status || '-'}</span>
-            <h2>{imovel.titulo || 'Imóvel sem título'}</h2>
+            <h2>{imovel.titulo || 'Imovel sem titulo'}</h2>
             <p className="imovel-detail-price">{precoFormatado}</p>
             <p className="imovel-detail-purpose">{imovel.finalidade || '-'}</p>
           </aside>
@@ -228,38 +244,72 @@ export function VisualizarImovelPage() {
 
         <div className="imovel-detail-grid">
           <section className="imovel-detail-section">
-            <h2>Detalhes do imóvel</h2>
+            <h2>Detalhes do imovel</h2>
             <dl className="imovel-detail-list">
               <div>
                 <dt>Tipo</dt>
-                <dd>{imovel?.tipo || '-'}</dd>
+                <dd>{imovel.tipo || '-'}</dd>
               </div>
               <div>
                 <dt>Bairro</dt>
-                <dd>{imovel?.bairro || '-'}</dd>
+                <dd>{imovel.bairro || '-'}</dd>
               </div>
               <div>
                 <dt>Cidade</dt>
-                <dd>{imovel?.cidade || '-'}</dd>
+                <dd>{imovel.cidade || '-'}</dd>
+              </div>
+              <div>
+                <dt>Estado</dt>
+                <dd>{imovel.estado || '-'}</dd>
               </div>
               <div>
                 <dt>Finalidade</dt>
-                <dd>{imovel?.finalidade || '-'}</dd>
+                <dd>{imovel.finalidade || '-'}</dd>
               </div>
               <div>
                 <dt>Status</dt>
-                <dd>{imovel?.status || '-'}</dd>
+                <dd>{imovel.status || '-'}</dd>
               </div>
+              {hasPositiveNumber(imovel.quartos) && (
+                <div>
+                  <dt>Quartos</dt>
+                  <dd>{imovel.quartos}</dd>
+                </div>
+              )}
+              {hasPositiveNumber(imovel.metragem) && (
+                <div>
+                  <dt>Metragem</dt>
+                  <dd>{imovel.metragem} m²</dd>
+                </div>
+              )}
+              {hasPositiveNumber(imovel.vagasGaragem) && (
+                <div>
+                  <dt>Vagas de garagem</dt>
+                  <dd>{imovel.vagasGaragem}</dd>
+                </div>
+              )}
+              {hasPositiveNumber(imovel.banheiros) && (
+                <div>
+                  <dt>Banheiros</dt>
+                  <dd>{imovel.banheiros}</dd>
+                </div>
+              )}
+              {hasPositiveNumber(imovel.suites) && (
+                <div>
+                  <dt>Suites</dt>
+                  <dd>{imovel.suites}</dd>
+                </div>
+              )}
             </dl>
           </section>
 
           <section className="imovel-detail-section">
-            <h2>Descrição</h2>
-            <p className="imovel-detail-description">{imovel?.descricao || 'Sem descrição cadastrada.'}</p>
+            <h2>Descricao</h2>
+            <p className="imovel-detail-description">{imovel.descricao || 'Sem descricao cadastrada.'}</p>
           </section>
 
           <section className="imovel-detail-section">
-            <h2>Informações do cadastro</h2>
+            <h2>Informacoes do cadastro</h2>
             <dl className="imovel-detail-list">
               <div>
                 <dt>Criado em</dt>
@@ -268,6 +318,10 @@ export function VisualizarImovelPage() {
               <div>
                 <dt>Atualizado em</dt>
                 <dd>{imovel.updatedAt ? dateFormatter.format(new Date(imovel.updatedAt)) : '-'}</dd>
+              </div>
+              <div>
+                <dt>Corretor captador</dt>
+                <dd>{corretorCaptadorNome}</dd>
               </div>
             </dl>
           </section>
@@ -283,6 +337,13 @@ export function VisualizarImovelPage() {
         error={inactivationError}
         onCancel={closeInactivationModal}
         onConfirm={handleConfirmInactivation}
+      />
+      <ImovelMidiasExternasSheet
+        imovelId={imovel.id}
+        isOpen={isMidiasExternasOpen}
+        onClose={closeMidiasExternas}
+        linkExternoFotos={imovel.linkExternoFotos}
+        linkExternoVideos={imovel.linkExternoVideos}
       />
     </main>
   );

@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 
-import type { AlterarSenhaPayload, CreateUserRequest, UpdateMeRequest, UpdateUserRequest, User } from './types';
+import type { AlterarSenhaPayload, CreateUserRequest, UpdateMeRequest, UpdateUserRequest, User, UserRole } from './types';
 
 type UpdateMeResponse =
   | User
@@ -14,9 +14,30 @@ export type UsuariosResponse = {
   total: number;
 };
 
+const PERFIS_CORRETOR_CAPTADOR = new Set<UserRole>(['ADMIN', 'CORRETOR']);
+
+const extractLoggedUser = (response: UpdateMeResponse) => {
+  if ('data' in response) {
+    return response.data;
+  }
+
+  return response;
+};
+
 export async function getUsersRequest() {
   const { data } = await apiClient.get<UsuariosResponse>('/usuarios');
   return data;
+}
+
+export async function getBrokerAndAdminUsersRequest() {
+  const response = await getUsersRequest();
+
+  return response.data.filter((usuario) => PERFIS_CORRETOR_CAPTADOR.has(usuario.role));
+}
+
+export async function getLoggedUserRequest() {
+  const { data } = await apiClient.get<UpdateMeResponse>('/usuarios/me');
+  return extractLoggedUser(data);
 }
 
 export async function createUserRequest(payload: CreateUserRequest) {
@@ -31,12 +52,7 @@ export async function updateUserRequest(id: string, payload: UpdateUserRequest) 
 
 export async function updateLoggedUserRequest(payload: UpdateMeRequest) {
   const { data } = await apiClient.put<UpdateMeResponse>('/usuarios/me', payload);
-
-  if ('data' in data) {
-    return data.data;
-  }
-
-  return data;
+  return extractLoggedUser(data);
 }
 
 

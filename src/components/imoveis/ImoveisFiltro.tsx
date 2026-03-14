@@ -7,7 +7,7 @@ type ImoveisFiltroProps = {
   onClear: () => void;
 };
 
-const tipos = ['Apartamento', 'Casa', 'Sobrado', 'Terreno', 'Comercial', 'Outro'];
+const tipos = ['Apartamento', 'Casa', 'Sobrado', 'Assobradado', 'Terreno', 'Comercial', 'Planta', 'Outro'];
 
 export function ImoveisFiltro({ initialFilters, onFilter, onClear }: ImoveisFiltroProps) {
   const [filters, setFilters] = useState<GetImoveisFilters>(initialFilters);

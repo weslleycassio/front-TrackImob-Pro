@@ -211,6 +211,87 @@ button.secondary { background: #e2e8f0; color: #0f172a; }
   color: #0f172a;
 }
 
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.38);
+  z-index: 41;
+}
+
+.right-side-sheet {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(100%, 420px);
+  height: 100vh;
+  padding: 1.2rem;
+  background: #fff;
+  border-left: 1px solid #dbeafe;
+  box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18);
+  transform: translateX(100%);
+  transition: transform 0.22s ease-in-out;
+  z-index: 42;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.right-side-sheet.open {
+  transform: translateX(0);
+}
+
+.right-side-sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.right-side-sheet-eyebrow {
+  margin: 0 0 0.35rem;
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.right-side-sheet-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.right-side-sheet-close {
+  width: auto !important;
+}
+
+.right-side-sheet-empty {
+  margin: 0;
+  padding: 0.9rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fbff;
+  color: #475569;
+}
+
+.right-side-sheet-section {
+  padding: 1rem;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.right-side-sheet-section h3 {
+  margin: 0 0 0.8rem;
+  font-size: 1rem;
+  color: #0f234f;
+}
+
+.right-side-sheet-link {
+  width: 100%;
+}
+
 .row { display: flex; justify-content: space-between; gap: 0.7rem; align-items: center; }
 .link-button {
   display: inline-flex;
@@ -464,6 +545,10 @@ textarea {
 }
 
 @media (max-width: 760px) {
+  .right-side-sheet {
+    width: 100%;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }

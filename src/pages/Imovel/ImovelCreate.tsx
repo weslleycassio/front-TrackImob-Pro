@@ -3,24 +3,85 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import type { User } from '../../api/types';
+import { getCidadesByEstadoRequest, getEstadosRequest, type CidadeOption, type EstadoOption } from '../../api/localidadesService';
+import { getBrokerAndAdminUsersRequest, getLoggedUserRequest } from '../../api/usersService';
+import { useAuth } from '../../auth/useAuth';
 import { createImovel, extractImovelId, uploadImovelImages } from '../../services/imoveis';
 import { toFriendlyError } from '../../utils/errorMessages';
 
-const tiposDeImovel = ['Apartamento', 'Casa', 'Sobrado', 'Terreno', 'Comercial', 'Outro'] as const;
+const tiposDeImovel = ['Apartamento', 'Casa', 'Sobrado', 'Assobradado', 'Terreno', 'Comercial', 'Planta', 'Outro'] as const;
+const FINALIDADE_LOCACAO = 'Loca\u00e7\u00e3o' as const;
+
+const optionalIntegerField = (fieldName: string) =>
+  z.preprocess(
+    (value) => {
+      if (value === '' || value === null || value === undefined) {
+        return undefined;
+      }
+
+      return Number(value);
+    },
+    z
+      .number({ invalid_type_error: `${fieldName} deve ser um valor valido` })
+      .int(`${fieldName} deve ser um numero inteiro`)
+      .min(0, `${fieldName} nao pode ser negativo`)
+      .optional(),
+  );
+
+const optionalNumberField = (fieldName: string) =>
+  z.preprocess(
+    (value) => {
+      if (value === '' || value === null || value === undefined) {
+        return undefined;
+      }
+
+      return Number(value);
+    },
+    z
+      .number({ invalid_type_error: `${fieldName} deve ser um valor valido` })
+      .min(0, `${fieldName} nao pode ser negativo`)
+      .optional(),
+  );
+
+const optionalStringField = () =>
+  z.preprocess(
+    (value) => {
+      if (typeof value !== 'string') {
+        return value;
+      }
+
+      const trimmedValue = value.trim();
+      return trimmedValue === '' ? undefined : trimmedValue;
+    },
+    z.string().optional(),
+  );
 
 const imovelSchema = z.object({
-  titulo: z.string().trim().min(1, 'Título é obrigatório'),
-  tipo: z.enum(tiposDeImovel, { required_error: 'Tipo é obrigatório' }),
-  finalidade: z.enum(['Venda', 'Locação'], {
-    required_error: 'Finalidade é obrigatória',
+  titulo: z.string().trim().min(1, 'Titulo e obrigatorio'),
+  tipo: z.enum(tiposDeImovel, { required_error: 'Tipo e obrigatorio' }),
+  finalidade: z.enum(['Venda', FINALIDADE_LOCACAO], {
+    required_error: 'Finalidade e obrigatoria',
   }),
-  bairro: z.string().trim().min(1, 'Bairro é obrigatório'),
-  cidade: z.string().trim().min(1, 'Cidade é obrigatória'),
-  preco: z.number({ invalid_type_error: 'Preço deve ser um valor válido' }).positive('Preço deve ser maior que zero'),
-  descricao: z.string().trim().min(1, 'Descrição é obrigatória'),
+  estado: z.string().trim().min(1, 'Estado e obrigatorio'),
+  bairro: z.string().trim().min(1, 'Bairro e obrigatorio'),
+  cidade: z.string().trim().min(1, 'Cidade e obrigatoria'),
+  preco: z.number({ invalid_type_error: 'Preco deve ser um valor valido' }).positive('Preco deve ser maior que zero'),
+  descricao: z.string().trim().min(1, 'Descricao e obrigatoria'),
   status: z.enum(['ATIVO', 'INATIVO'], {
-    required_error: 'Status é obrigatório',
+    required_error: 'Status e obrigatorio',
   }),
+  corretorCaptadorId: z.string().trim().min(1, 'Corretor captador e obrigatorio'),
+  quartos: optionalIntegerField('Quartos'),
+  metragem: optionalNumberField('Metragem'),
+  vagasGaragem: optionalIntegerField('Vagas de garagem'),
+  banheiros: optionalIntegerField('Banheiros'),
+  suites: optionalIntegerField('Suites'),
+  linkExternoFotos: optionalStringField(),
+  linkExternoVideos: optionalStringField(),
+  nomeProprietario: optionalStringField(),
+  telefoneProprietario: optionalStringField(),
+  enderecoCaptacao: optionalStringField(),
 });
 
 type ImovelFormData = z.infer<typeof imovelSchema>;
@@ -56,21 +117,50 @@ const parseCurrencyToNumber = (formattedValue: string) => {
   return Number.isNaN(value) ? 0 : value;
 };
 
+const onlyDigits = (value: string) => value.replace(/\D/g, '');
+
+const formatPhone = (value: string) => {
+  const numbers = onlyDigits(value).slice(0, 11);
+
+  if (numbers.length <= 2) {
+    return numbers;
+  }
+
+  if (numbers.length <= 10) {
+    return numbers.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2').slice(0, 14);
+  }
+
+  return numbers.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15);
+};
+
 export function ImovelCreate() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [selectedImages, setSelectedImages] = useState<PreviewFile[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [precoInput, setPrecoInput] = useState('R$ 0,00');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('Imóvel cadastrado com sucesso.');
+  const [successMessage, setSuccessMessage] = useState('Imovel cadastrado com sucesso.');
+  const [corretoresCaptadores, setCorretoresCaptadores] = useState<User[]>([]);
+  const [isLoadingCorretoresCaptadores, setIsLoadingCorretoresCaptadores] = useState(false);
+  const [corretoresCaptadoresError, setCorretoresCaptadoresError] = useState<string | null>(null);
+  const [estados, setEstados] = useState<EstadoOption[]>([]);
+  const [cidades, setCidades] = useState<CidadeOption[]>([]);
+  const [isLoadingEstados, setIsLoadingEstados] = useState(false);
+  const [isLoadingCidades, setIsLoadingCidades] = useState(false);
+  const [estadosError, setEstadosError] = useState<string | null>(null);
+  const [cidadesError, setCidadesError] = useState<string | null>(null);
+  const isCorretor = user?.role === 'CORRETOR';
+  const defaultCorretorCaptadorId = user?.role === 'CORRETOR' ? String(user.id) : '';
 
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ImovelFormData>({
     resolver: zodResolver(imovelSchema),
@@ -79,10 +169,15 @@ export function ImovelCreate() {
       status: 'ATIVO',
       preco: 0,
       tipo: 'Apartamento',
+      estado: '',
+      cidade: '',
+      corretorCaptadorId: defaultCorretorCaptadorId,
     },
   });
 
   const isBusy = useMemo(() => isSubmitting || uploadProgress > 0, [isSubmitting, uploadProgress]);
+  const selectedEstado = watch('estado');
+  const selectedCorretorCaptadorId = watch('corretorCaptadorId');
 
   useEffect(
     () => () => {
@@ -90,6 +185,99 @@ export function ImovelCreate() {
     },
     [selectedImages],
   );
+
+  useEffect(() => {
+    const loadEstados = async () => {
+      setIsLoadingEstados(true);
+      setEstadosError(null);
+
+      try {
+        const estadosResponse = await getEstadosRequest();
+        setEstados(estadosResponse);
+      } catch (error) {
+        setEstados([]);
+        setEstadosError(toFriendlyError(error, 'Nao foi possivel carregar os estados.'));
+      } finally {
+        setIsLoadingEstados(false);
+      }
+    };
+
+    const loadCorretoresCaptadores = async () => {
+      setIsLoadingCorretoresCaptadores(true);
+      setCorretoresCaptadoresError(null);
+
+      try {
+        if (isCorretor) {
+          const loggedUser = await getLoggedUserRequest();
+          setCorretoresCaptadores([loggedUser]);
+          setValue('corretorCaptadorId', String(loggedUser.id), {
+            shouldDirty: false,
+            shouldValidate: false,
+          });
+          return;
+        }
+
+        const usuarios = await getBrokerAndAdminUsersRequest();
+        setCorretoresCaptadores(usuarios);
+      } catch (error) {
+        if (isCorretor && user) {
+          setCorretoresCaptadores([user]);
+          setValue('corretorCaptadorId', String(user.id), {
+            shouldDirty: false,
+            shouldValidate: false,
+          });
+        } else {
+          setCorretoresCaptadores([]);
+          setCorretoresCaptadoresError(
+            toFriendlyError(error, 'Nao foi possivel carregar os usuarios para selecionar o corretor captador.'),
+          );
+        }
+      } finally {
+        setIsLoadingCorretoresCaptadores(false);
+      }
+    };
+
+    loadEstados();
+    loadCorretoresCaptadores();
+  }, [isCorretor, setValue, user]);
+
+  useEffect(() => {
+    setValue('cidade', '', { shouldDirty: false, shouldValidate: false });
+    setCidades([]);
+    setCidadesError(null);
+
+    if (!selectedEstado) {
+      return;
+    }
+
+    const loadCidades = async () => {
+      setIsLoadingCidades(true);
+      setCidadesError(null);
+
+      try {
+        const cidadesResponse = await getCidadesByEstadoRequest(selectedEstado);
+        setCidades(cidadesResponse);
+      } catch (error) {
+        setCidades([]);
+        setCidadesError(toFriendlyError(error, 'Nao foi possivel carregar as cidades do estado selecionado.'));
+      } finally {
+        setIsLoadingCidades(false);
+      }
+    };
+
+    loadCidades();
+  }, [selectedEstado, setValue]);
+
+  useEffect(() => {
+    if (!isCorretor || !defaultCorretorCaptadorId) {
+      return;
+    }
+
+    setValue('corretorCaptadorId', defaultCorretorCaptadorId, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+  }, [defaultCorretorCaptadorId, isCorretor, setValue]);
 
   useEffect(() => {
     if (!isSuccessModalOpen) return;
@@ -111,14 +299,14 @@ export function ImovelCreate() {
 
     const invalidTypeFiles = files.filter((file) => !ACCEPTED_IMAGE_TYPES.includes(file.type));
     if (invalidTypeFiles.length > 0) {
-      setImageError('Formato inválido. Envie apenas arquivos JPG, JPEG, PNG ou WEBP.');
+      setImageError('Formato invalido. Envie apenas arquivos JPG, JPEG, PNG ou WEBP.');
       return;
     }
 
     const maxImageSizeBytes = MAX_IMAGE_SIZE_MB * 1024 * 1024;
     const invalidSizeFiles = files.filter((file) => file.size > maxImageSizeBytes);
     if (invalidSizeFiles.length > 0) {
-      setImageError(`Cada imagem deve ter no máximo ${MAX_IMAGE_SIZE_MB}MB.`);
+      setImageError(`Cada imagem deve ter no maximo ${MAX_IMAGE_SIZE_MB}MB.`);
       return;
     }
 
@@ -130,7 +318,7 @@ export function ImovelCreate() {
       const filesToAdd = newFiles.slice(0, availableSlots);
 
       if (filesToAdd.length < newFiles.length) {
-        setImageError(`Limite máximo de ${MAX_IMAGES} imagens atingido.`);
+        setImageError(`Limite maximo de ${MAX_IMAGES} imagens atingido.`);
       } else {
         setImageError(null);
       }
@@ -168,12 +356,24 @@ export function ImovelCreate() {
     reset({
       titulo: '',
       tipo: 'Apartamento',
+      estado: '',
       finalidade: 'Venda',
       bairro: '',
       cidade: '',
       preco: 0,
       descricao: '',
       status: 'ATIVO',
+      corretorCaptadorId: defaultCorretorCaptadorId,
+      quartos: undefined,
+      metragem: undefined,
+      vagasGaragem: undefined,
+      banheiros: undefined,
+      suites: undefined,
+      linkExternoFotos: undefined,
+      linkExternoVideos: undefined,
+      nomeProprietario: undefined,
+      telefoneProprietario: undefined,
+      enderecoCaptacao: undefined,
     });
   };
 
@@ -192,11 +392,23 @@ export function ImovelCreate() {
         titulo: data.titulo,
         tipo: data.tipo,
         finalidade: data.finalidade,
+        estado: data.estado,
         bairro: data.bairro,
         cidade: data.cidade,
         preco: precoNumber,
         descricao: data.descricao,
         status: data.status,
+        corretorCaptadorId: isCorretor ? defaultCorretorCaptadorId : data.corretorCaptadorId,
+        quartos: data.quartos,
+        metragem: data.metragem,
+        vagasGaragem: data.vagasGaragem,
+        banheiros: data.banheiros,
+        suites: data.suites,
+        linkExternoFotos: data.linkExternoFotos ?? null,
+        linkExternoVideos: data.linkExternoVideos ?? null,
+        nomeProprietario: data.nomeProprietario ?? null,
+        telefoneProprietario: data.telefoneProprietario ?? null,
+        enderecoCaptacao: data.enderecoCaptacao ?? null,
       };
 
       const createdImovel = await createImovel(payload);
@@ -204,30 +416,30 @@ export function ImovelCreate() {
 
       if (!selectedImageFiles.length) {
         setUploadProgress(100);
-        setSuccessMessage('Imóvel cadastrado com sucesso. Você pode adicionar imagens depois.');
+        setSuccessMessage('Imovel cadastrado com sucesso. Voce pode adicionar imagens depois.');
         clearForm();
         setIsSuccessModalOpen(true);
         return;
       }
 
       if (!imovelId) {
-        throw new Error('Não foi possível identificar o imóvel criado para realizar upload das imagens.');
+        throw new Error('Nao foi possivel identificar o imovel criado para realizar upload das imagens.');
       }
 
       try {
         setUploadProgress(1);
         await uploadImovelImages(imovelId, selectedImageFiles, (progress) => setUploadProgress(progress));
         setUploadProgress(100);
-        setSuccessMessage('Imóvel e imagens cadastrados com sucesso.');
+        setSuccessMessage('Imovel e imagens cadastrados com sucesso.');
       } catch {
         setUploadProgress(0);
-        setSuccessMessage('Imóvel cadastrado com sucesso, mas houve falha no upload das imagens.');
+        setSuccessMessage('Imovel cadastrado com sucesso, mas houve falha no upload das imagens.');
       }
 
       clearForm();
       setIsSuccessModalOpen(true);
     } catch (error) {
-      setGlobalError(toFriendlyError(error, 'Não foi possível cadastrar o imóvel. Verifique os dados e tente novamente.'));
+      setGlobalError(toFriendlyError(error, 'Nao foi possivel cadastrar o imovel. Verifique os dados e tente novamente.'));
     }
   };
 
@@ -246,7 +458,7 @@ export function ImovelCreate() {
     <main className="content-page">
       <section className="feature-card form-card imovel-form-card">
         <div className="row page-header-row">
-          <h1>Cadastrar Imóvel</h1>
+          <h1>Cadastrar Imovel</h1>
           <button className="secondary" type="button" onClick={() => navigate('/app')}>
             Voltar
           </button>
@@ -256,8 +468,8 @@ export function ImovelCreate() {
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="form-group">
-            <label htmlFor="titulo">Título*</label>
-            <input id="titulo" type="text" placeholder="Ex: Apartamento 2 dormitórios com sacada" {...register('titulo')} />
+            <label htmlFor="titulo">Titulo*</label>
+            <input id="titulo" type="text" placeholder="Ex: Apartamento 2 dormitorios com sacada" {...register('titulo')} />
             {errors.titulo && <span className="error-text">{errors.titulo.message}</span>}
           </div>
 
@@ -278,7 +490,7 @@ export function ImovelCreate() {
               <label htmlFor="finalidade">Finalidade*</label>
               <select id="finalidade" {...register('finalidade')}>
                 <option value="Venda">Venda</option>
-                <option value="Locação">Locação</option>
+                <option value={FINALIDADE_LOCACAO}>{FINALIDADE_LOCACAO}</option>
               </select>
               {errors.finalidade && <span className="error-text">{errors.finalidade.message}</span>}
             </div>
@@ -286,21 +498,49 @@ export function ImovelCreate() {
 
           <div className="form-grid">
             <div className="form-group">
-              <label htmlFor="bairro">Bairro*</label>
-              <input id="bairro" type="text" {...register('bairro')} />
-              {errors.bairro && <span className="error-text">{errors.bairro.message}</span>}
+              <label htmlFor="estado">Estado*</label>
+              <select id="estado" {...register('estado')} disabled={isLoadingEstados || isBusy}>
+                <option value="">{isLoadingEstados ? 'Carregando estados...' : 'Selecione um estado'}</option>
+                {estados.map((estado) => (
+                  <option key={estado.sigla} value={estado.sigla}>
+                    {estado.nome} ({estado.sigla})
+                  </option>
+                ))}
+              </select>
+              {errors.estado && <span className="error-text">{errors.estado.message}</span>}
+              {estadosError && <span className="error-text">{estadosError}</span>}
             </div>
 
             <div className="form-group">
               <label htmlFor="cidade">Cidade*</label>
-              <input id="cidade" type="text" {...register('cidade')} />
+              <select id="cidade" {...register('cidade')} disabled={!selectedEstado || isLoadingCidades || isBusy}>
+                <option value="">
+                  {!selectedEstado
+                    ? 'Selecione um estado primeiro'
+                    : isLoadingCidades
+                      ? 'Carregando cidades...'
+                      : 'Selecione uma cidade'}
+                </option>
+                {cidades.map((cidade) => (
+                  <option key={cidade.nome} value={cidade.nome}>
+                    {cidade.nome}
+                  </option>
+                ))}
+              </select>
               {errors.cidade && <span className="error-text">{errors.cidade.message}</span>}
+              {cidadesError && <span className="error-text">{cidadesError}</span>}
             </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="bairro">Bairro*</label>
+            <input id="bairro" type="text" {...register('bairro')} />
+            {errors.bairro && <span className="error-text">{errors.bairro.message}</span>}
           </div>
 
           <div className="form-grid">
             <div className="form-group">
-              <label htmlFor="preco">Preço*</label>
+              <label htmlFor="preco">Preco*</label>
               <input
                 id="preco"
                 type="text"
@@ -322,14 +562,137 @@ export function ImovelCreate() {
             </div>
           </div>
 
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="quartos">Quartos</label>
+              <input id="quartos" type="number" min="0" step="1" {...register('quartos')} />
+              {errors.quartos && <span className="error-text">{errors.quartos.message}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="metragem">Metragem</label>
+              <input id="metragem" type="number" min="0" step="0.01" {...register('metragem')} />
+              {errors.metragem && <span className="error-text">{errors.metragem.message}</span>}
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="vagasGaragem">Vagas de garagem</label>
+              <input id="vagasGaragem" type="number" min="0" step="1" {...register('vagasGaragem')} />
+              {errors.vagasGaragem && <span className="error-text">{errors.vagasGaragem.message}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="banheiros">Banheiros</label>
+              <input id="banheiros" type="number" min="0" step="1" {...register('banheiros')} />
+              {errors.banheiros && <span className="error-text">{errors.banheiros.message}</span>}
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="suites">Suites</label>
+              <input id="suites" type="number" min="0" step="1" {...register('suites')} />
+              {errors.suites && <span className="error-text">{errors.suites.message}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="corretorCaptadorId">Corretor captador*</label>
+              {isCorretor ? (
+                <>
+                  <input type="hidden" {...register('corretorCaptadorId')} />
+                  <select
+                    id="corretorCaptadorId"
+                    value={selectedCorretorCaptadorId ?? ''}
+                    onChange={() => undefined}
+                    disabled
+                  >
+                    <option value="">
+                      {isLoadingCorretoresCaptadores ? 'Carregando usuarios...' : 'Selecione um corretor captador'}
+                    </option>
+                    {corretoresCaptadores.map((usuario) => (
+                      <option key={usuario.id} value={String(usuario.id)}>
+                        {usuario.nome} ({usuario.role})
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <select
+                  id="corretorCaptadorId"
+                  {...register('corretorCaptadorId')}
+                  disabled={isLoadingCorretoresCaptadores || isBusy}
+                >
+                  <option value="">
+                    {isLoadingCorretoresCaptadores ? 'Carregando usuarios...' : 'Selecione um corretor captador'}
+                  </option>
+                  {corretoresCaptadores.map((usuario) => (
+                    <option key={usuario.id} value={String(usuario.id)}>
+                      {usuario.nome} ({usuario.role})
+                    </option>
+                  ))}
+                </select>
+              )}
+              {errors.corretorCaptadorId && <span className="error-text">{errors.corretorCaptadorId.message}</span>}
+              {corretoresCaptadoresError && <span className="error-text">{corretoresCaptadoresError}</span>}
+            </div>
+          </div>
+
           <div className="form-group">
-            <label htmlFor="descricao">Descrição*</label>
+            <label htmlFor="descricao">Descricao*</label>
             <textarea id="descricao" rows={4} {...register('descricao')} />
             {errors.descricao && <span className="error-text">{errors.descricao.message}</span>}
           </div>
 
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="nomeProprietario">Nome do proprietario</label>
+              <input id="nomeProprietario" type="text" {...register('nomeProprietario')} />
+              {errors.nomeProprietario && <span className="error-text">{errors.nomeProprietario.message}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="telefoneProprietario">Telefone</label>
+              <input
+                id="telefoneProprietario"
+                type="tel"
+                inputMode="tel"
+                placeholder="(11) 99999-9999"
+                {...register('telefoneProprietario', {
+                  onChange: (event) => {
+                    setValue('telefoneProprietario', formatPhone(event.target.value), {
+                      shouldDirty: true,
+                    });
+                  },
+                })}
+              />
+              {errors.telefoneProprietario && <span className="error-text">{errors.telefoneProprietario.message}</span>}
+            </div>
+          </div>
+
           <div className="form-group">
-            <label htmlFor="imagens">Imagens do imóvel</label>
+            <label htmlFor="enderecoCaptacao">Endereco da captacao</label>
+            <textarea id="enderecoCaptacao" rows={3} {...register('enderecoCaptacao')} />
+            {errors.enderecoCaptacao && <span className="error-text">{errors.enderecoCaptacao.message}</span>}
+          </div>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="linkExternoFotos">Link externo de fotos</label>
+              <input id="linkExternoFotos" type="url" placeholder="https://..." {...register('linkExternoFotos')} />
+              {errors.linkExternoFotos && <span className="error-text">{errors.linkExternoFotos.message}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="linkExternoVideos">Link externo de videos</label>
+              <input id="linkExternoVideos" type="url" placeholder="https://..." {...register('linkExternoVideos')} />
+              {errors.linkExternoVideos && <span className="error-text">{errors.linkExternoVideos.message}</span>}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="imagens">Imagens do imovel</label>
             <input
               id="imagens"
               type="file"
@@ -339,7 +702,7 @@ export function ImovelCreate() {
               disabled={isBusy}
             />
             <small className="hint-text">
-              {selectedImages.length} imagem(ns) selecionada(s). Máximo de {MAX_IMAGES} arquivos, até {MAX_IMAGE_SIZE_MB}MB cada.
+              {selectedImages.length} imagem(ns) selecionada(s). Maximo de {MAX_IMAGES} arquivos, ate {MAX_IMAGE_SIZE_MB}MB cada.
             </small>
             {imageError && <span className="error-text">{imageError}</span>}
           </div>
@@ -376,7 +739,7 @@ export function ImovelCreate() {
       {isSuccessModalOpen && (
         <div className="modal-backdrop" role="presentation">
           <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title">
-            <h2 id="success-title">Imóvel cadastrado com sucesso</h2>
+            <h2 id="success-title">Imovel cadastrado com sucesso</h2>
             <p>{successMessage}</p>
             <button className="primary" type="button" onClick={handleSuccessClose}>
               OK

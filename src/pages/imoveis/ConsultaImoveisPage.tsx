@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { User } from '../../api/types';
-import { getUsersRequest } from '../../api/usersService';
+import { getBrokerAndAdminUsersRequest } from '../../api/usersService';
 import { InativarImovelModal } from '../../components/imoveis/InativarImovelModal';
 import { ImoveisFiltro } from '../../components/imoveis/ImoveisFiltro';
 import { ImoveisPaginacao } from '../../components/imoveis/ImoveisPaginacao';
@@ -149,8 +149,8 @@ export function ConsultaImoveisPage() {
     setUsuariosFechamentoError(null);
 
     try {
-      const response = await getUsersRequest();
-      setUsuariosFechamento(response.data.filter((usuario) => usuario.role === 'ADMIN' || usuario.role === 'CORRETOR'));
+      const usuarios = await getBrokerAndAdminUsersRequest();
+      setUsuariosFechamento(usuarios);
     } catch (apiError) {
       setUsuariosFechamento([]);
       setUsuariosFechamentoError(
