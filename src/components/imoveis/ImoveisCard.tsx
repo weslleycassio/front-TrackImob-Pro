@@ -5,8 +5,13 @@ type ImoveisCardProps = {
   imovel: Imovel;
   formatCurrency: (value: number) => string;
   formatDate: (date?: string) => string;
+  canEdit: boolean;
+  canActivate: boolean;
   canInativar: boolean;
+  isActivating: boolean;
   onVisualizar: (imovel: Imovel) => void;
+  onEditar: (imovel: Imovel) => void;
+  onAtivar: (imovel: Imovel) => void;
   onInativar: (imovel: Imovel) => void;
 };
 
@@ -14,12 +19,15 @@ export function ImoveisCard({
   imovel,
   formatCurrency,
   formatDate,
+  canEdit,
+  canActivate,
   canInativar,
+  isActivating,
   onVisualizar,
+  onEditar,
+  onAtivar,
   onInativar,
 }: ImoveisCardProps) {
-  const isInativo = String(imovel.status).toUpperCase() === 'INATIVO';
-
   return (
     <article className="imovel-card">
       <ImovelCarousel imagens={imovel.imagens ?? []} titulo={imovel.titulo} />
@@ -27,14 +35,14 @@ export function ImoveisCard({
       <div className="imovel-card-content">
         <h3>{imovel.titulo}</h3>
         <p className="imovel-card-meta">
-          {imovel.tipo} • {imovel.finalidade}
+          {imovel.tipo} - {imovel.finalidade}
         </p>
 
         <p>
           <strong>Local:</strong> {imovel.bairro} - {imovel.cidade}
         </p>
         <p>
-          <strong>Preço:</strong> {formatCurrency(imovel.preco)}
+          <strong>Preco:</strong> {formatCurrency(imovel.preco)}
         </p>
         <p>
           <strong>Status:</strong> {imovel.status}
@@ -49,17 +57,18 @@ export function ImoveisCard({
           <button type="button" className="secondary" onClick={() => onVisualizar(imovel)}>
             Visualizar
           </button>
-          <button type="button" className="secondary" disabled title="Edição ainda não disponível">
-            Editar
-          </button>
+          {canEdit && (
+            <button type="button" className="secondary" onClick={() => onEditar(imovel)}>
+              Editar
+            </button>
+          )}
+          {canActivate && (
+            <button type="button" className="secondary" onClick={() => onAtivar(imovel)} disabled={isActivating}>
+              {isActivating ? 'Ativando...' : 'Ativar'}
+            </button>
+          )}
           {canInativar && (
-            <button
-              type="button"
-              className="secondary danger"
-              onClick={() => onInativar(imovel)}
-              disabled={isInativo}
-              title={isInativo ? 'Imóvel já está inativo' : undefined}
-            >
+            <button type="button" className="secondary danger" onClick={() => onInativar(imovel)}>
               Inativar
             </button>
           )}

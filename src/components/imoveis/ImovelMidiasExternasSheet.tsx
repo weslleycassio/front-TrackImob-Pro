@@ -67,7 +67,7 @@ export function ImovelMidiasExternasSheet({
   const [dadosCaptacao, setDadosCaptacao] = useState<DadosCaptacaoImovel | null>(null);
   const [isLoadingDadosCaptacao, setIsLoadingDadosCaptacao] = useState(false);
   const [dadosCaptacaoError, setDadosCaptacaoError] = useState<string | null>(null);
-  const [shouldShowDadosCaptacao, setShouldShowDadosCaptacao] = useState(true);
+  const [shouldShowDadosCaptacao, setShouldShowDadosCaptacao] = useState(false);
   const fotosLink = normalizeExternalLink(linkExternoFotos);
   const videosLink = normalizeExternalLink(linkExternoVideos);
   const hasAnyMedia = Boolean(fotosLink || videosLink);
@@ -96,8 +96,9 @@ export function ImovelMidiasExternasSheet({
 
     const loadDadosCaptacao = async () => {
       setIsLoadingDadosCaptacao(true);
+      setDadosCaptacao(null);
       setDadosCaptacaoError(null);
-      setShouldShowDadosCaptacao(true);
+      setShouldShowDadosCaptacao(false);
 
       try {
         const response = await getDadosCaptacaoImovel(imovelId);
@@ -145,17 +146,24 @@ export function ImovelMidiasExternasSheet({
 
   return (
     <>
-      {isOpen && <button type="button" className="sheet-overlay" aria-label="Fechar midias externas" onClick={onClose} />}
+      {isOpen && (
+        <button
+          type="button"
+          className="sheet-overlay"
+          aria-label={'Fechar informa\u00e7\u00f5es extras'}
+          onClick={onClose}
+        />
+      )}
       <aside
         className={`right-side-sheet ${isOpen ? 'open' : ''}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="midias-externas-title"
+        aria-labelledby="informacoes-extras-title"
       >
         <div className="right-side-sheet-header">
           <div>
             <p className="right-side-sheet-eyebrow">Imovel</p>
-            <h2 id="midias-externas-title">Midias externas</h2>
+            <h2 id="informacoes-extras-title">{'Informa\u00e7\u00f5es extras'}</h2>
           </div>
           <button type="button" className="secondary right-side-sheet-close" onClick={onClose}>
             Fechar

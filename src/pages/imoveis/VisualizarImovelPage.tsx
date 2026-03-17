@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { User } from '../../api/types';
 import { getBrokerAndAdminUsersRequest } from '../../api/usersService';
 import { useAuth } from '../../auth/useAuth';
@@ -8,12 +8,16 @@ import { ImovelMidiasExternasSheet } from '../../components/imoveis/ImovelMidias
 import { InativarImovelModal } from '../../components/imoveis/InativarImovelModal';
 import { ImovelCarousel } from '../../components/imoveis/ImovelCarousel';
 import {
+  ativarImovel,
   getImovelById,
   inativarImovel,
   type Imovel,
   type InativarImovelPayload,
+  motivoInativacaoImovelOptions,
 } from '../../services/imoveisService';
 import { toFriendlyError } from '../../utils/errorMessages';
+import { canEditImovel } from '../../utils/imovelPermissions';
+import { canActivateImovel } from '../../utils/imovelStatus';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -26,9 +30,19 @@ const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
 });
 
 const hasPositiveNumber = (value?: number | null) => typeof value === 'number' && Number.isFinite(value) && value > 0;
+const motivoInativacaoLabels = new Map<string, string>(motivoInativacaoImovelOptions.map((option) => [option.value, option.label]));
+const getDisplayValue = (value?: string | null) => {
+  if (typeof value !== 'string') {
+    return '-';
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue.length > 0 ? trimmedValue : '-';
+};
 
 export function VisualizarImovelPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [imovel, setImovel] = useState<Imovel | null>(null);
@@ -38,6 +52,7 @@ export function VisualizarImovelPage() {
   const [isInactivationModalOpen, setIsInactivationModalOpen] = useState(false);
   const [isMidiasExternasOpen, setIsMidiasExternasOpen] = useState(false);
   const [isInactivating, setIsInactivating] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
   const [inactivationError, setInactivationError] = useState<string | null>(null);
   const [usuariosFechamento, setUsuariosFechamento] = useState<User[]>([]);
   const [isLoadingUsuariosFechamento, setIsLoadingUsuariosFechamento] = useState(false);
@@ -47,6 +62,30 @@ export function VisualizarImovelPage() {
   const precoFormatado =
     typeof imovel?.preco === 'number' && Number.isFinite(imovel.preco) ? currencyFormatter.format(imovel.preco) : '-';
   const corretorCaptadorNome = imovel?.corretorCaptador?.nome || '-';
+  const canEditarImovel = useMemo(() => canEditImovel(user, imovel), [imovel, user]);
+  const canInativarImovel = useMemo(() => {
+    if (!user || !imovel) {
+      return false;
+    }
+
+    if (user.role === 'ADMIN') {
+      return true;
+    }
+
+    if (imovel.responsavelId === undefined || imovel.responsavelId === null) {
+      return false;
+    }
+
+    return String(imovel.responsavelId) === String(user.id);
+  }, [imovel, user]);
+  const canAtivarImovel = useMemo(() => canInativarImovel && canActivateImovel(imovel), [imovel, canInativarImovel]);
+  const motivoInativacaoLabel =
+    (typeof imovel?.motivoInativacao === 'string' ? motivoInativacaoLabels.get(imovel.motivoInativacao) : null) ??
+    getDisplayValue(imovel?.motivoInativacao);
+  const atualizadorNome = getDisplayValue(imovel?.atualizadoPorNome);
+  const inativadorNome = getDisplayValue(imovel?.inativadoPorNome);
+  const corretorInativacaoNome = getDisplayValue(imovel?.responsavelFechamentoNome);
+  const descricaoInativacao = getDisplayValue(imovel?.descricaoInativacao);
 
   const loadImovel = useCallback(async () => {
     if (!id) {
@@ -78,21 +117,16 @@ export function VisualizarImovelPage() {
     loadImovel();
   }, [loadImovel]);
 
-  const canInativarImovel = useMemo(() => {
-    if (!user || !imovel) {
-      return false;
+  useEffect(() => {
+    const successMessageFromNavigation = (location.state as { successMessage?: string } | null)?.successMessage;
+
+    if (!successMessageFromNavigation) {
+      return;
     }
 
-    if (user.role === 'ADMIN') {
-      return true;
-    }
-
-    if (imovel.responsavelId === undefined || imovel.responsavelId === null) {
-      return false;
-    }
-
-    return String(imovel.responsavelId) === String(user.id);
-  }, [imovel, user]);
+    setSuccessMessage(successMessageFromNavigation);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   const loadUsuariosFechamento = useCallback(async () => {
     setIsLoadingUsuariosFechamento(true);
@@ -167,6 +201,26 @@ export function VisualizarImovelPage() {
     }
   };
 
+  const handleActivate = async () => {
+    if (!imovel) {
+      return;
+    }
+
+    setSuccessMessage(null);
+    setInactivationError(null);
+    setIsActivating(true);
+
+    try {
+      await ativarImovel(imovel.id);
+      setSuccessMessage('Imovel ativado com sucesso.');
+      await loadImovel();
+    } catch (apiError) {
+      setInactivationError(toFriendlyError(apiError, 'Nao foi possivel ativar o imovel. Tente novamente.'));
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <main className="content-page">
@@ -204,19 +258,24 @@ export function VisualizarImovelPage() {
           </div>
 
           <div className="imovel-detail-actions">
-            <button type="button" className="secondary" disabled title="Edicao ainda nao disponivel">
-              Editar imovel
-            </button>
+            {canEditarImovel && (
+              <button type="button" className="secondary" onClick={() => navigate(`/imoveis/${imovel.id}/editar`)}>
+                Editar imovel
+              </button>
+            )}
+            {canAtivarImovel && (
+              <button type="button" className="secondary" onClick={handleActivate} disabled={isActivating}>
+                {isActivating ? 'Ativando...' : 'Ativar'}
+              </button>
+            )}
             <button type="button" className="secondary" onClick={openMidiasExternas}>
-              Midias externas
+              {'Informa\u00e7\u00f5es extras'}
             </button>
-            {canInativarImovel && (
+            {canInativarImovel && !isInativo && (
               <button
                 type="button"
                 className="secondary danger"
                 onClick={openInactivationModal}
-                disabled={isInativo}
-                title={isInativo ? 'Imovel ja esta inativo' : undefined}
               >
                 Inativar imovel
               </button>
@@ -320,9 +379,37 @@ export function VisualizarImovelPage() {
                 <dd>{imovel.updatedAt ? dateFormatter.format(new Date(imovel.updatedAt)) : '-'}</dd>
               </div>
               <div>
+                <dt>Quem atualizou</dt>
+                <dd>{atualizadorNome}</dd>
+              </div>
+              <div>
                 <dt>Corretor captador</dt>
                 <dd>{corretorCaptadorNome}</dd>
               </div>
+              {isInativo && (
+                <div>
+                  <dt>Motivo</dt>
+                  <dd>{motivoInativacaoLabel}</dd>
+                </div>
+              )}
+              {isInativo && corretorInativacaoNome !== '-' && (
+                <div>
+                  <dt>Corretor</dt>
+                  <dd>{corretorInativacaoNome}</dd>
+                </div>
+              )}
+              {isInativo && (
+                <div>
+                  <dt>Quem inativou</dt>
+                  <dd>{inativadorNome}</dd>
+                </div>
+              )}
+              {isInativo && descricaoInativacao !== '-' && (
+                <div>
+                  <dt>Descricao</dt>
+                  <dd>{descricaoInativacao}</dd>
+                </div>
+              )}
             </dl>
           </section>
         </div>

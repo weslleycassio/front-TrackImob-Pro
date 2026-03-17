@@ -1,17 +1,32 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import axios from 'axios';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import type { Resolver } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
 import type { User } from '../../api/types';
 import { getCidadesByEstadoRequest, getEstadosRequest, type CidadeOption, type EstadoOption } from '../../api/localidadesService';
 import { getBrokerAndAdminUsersRequest, getLoggedUserRequest } from '../../api/usersService';
 import { useAuth } from '../../auth/useAuth';
-import { createImovel, extractImovelId, uploadImovelImages } from '../../services/imoveis';
+import {
+  createImovel,
+  extractImovelId,
+  getImovelById,
+  type Imovel,
+  type FinalidadeImovel,
+  type StatusImovel,
+  type TipoImovel,
+  type UpdateImovelPayload,
+  updateImovel,
+  uploadImovelImages,
+} from '../../services/imoveis';
 import { toFriendlyError } from '../../utils/errorMessages';
+import { canEditImovel } from '../../utils/imovelPermissions';
 
 const tiposDeImovel = ['Apartamento', 'Casa', 'Sobrado', 'Assobradado', 'Terreno', 'Comercial', 'Planta', 'Outro'] as const;
 const FINALIDADE_LOCACAO = 'Loca\u00e7\u00e3o' as const;
+const STATUS_OPTIONS = ['ATIVO', 'INATIVO'] as const;
 
 const optionalIntegerField = (fieldName: string) =>
   z.preprocess(
@@ -57,7 +72,7 @@ const optionalStringField = () =>
     z.string().optional(),
   );
 
-const imovelSchema = z.object({
+const imovelCommonSchema = z.object({
   titulo: z.string().trim().min(1, 'Titulo e obrigatorio'),
   tipo: z.enum(tiposDeImovel, { required_error: 'Tipo e obrigatorio' }),
   finalidade: z.enum(['Venda', FINALIDADE_LOCACAO], {
@@ -68,10 +83,6 @@ const imovelSchema = z.object({
   cidade: z.string().trim().min(1, 'Cidade e obrigatoria'),
   preco: z.number({ invalid_type_error: 'Preco deve ser um valor valido' }).positive('Preco deve ser maior que zero'),
   descricao: z.string().trim().min(1, 'Descricao e obrigatoria'),
-  status: z.enum(['ATIVO', 'INATIVO'], {
-    required_error: 'Status e obrigatorio',
-  }),
-  corretorCaptadorId: z.string().trim().min(1, 'Corretor captador e obrigatorio'),
   quartos: optionalIntegerField('Quartos'),
   metragem: optionalNumberField('Metragem'),
   vagasGaragem: optionalIntegerField('Vagas de garagem'),
@@ -79,17 +90,34 @@ const imovelSchema = z.object({
   suites: optionalIntegerField('Suites'),
   linkExternoFotos: optionalStringField(),
   linkExternoVideos: optionalStringField(),
+});
+
+const imovelCreateSchema = imovelCommonSchema.extend({
+  status: z.enum(STATUS_OPTIONS, {
+    required_error: 'Status e obrigatorio',
+  }),
+  corretorCaptadorId: z.string().trim().min(1, 'Corretor captador e obrigatorio'),
   nomeProprietario: optionalStringField(),
   telefoneProprietario: optionalStringField(),
   enderecoCaptacao: optionalStringField(),
 });
 
-type ImovelFormData = z.infer<typeof imovelSchema>;
+const imovelEditSchema = imovelCommonSchema.extend({
+  status: z.enum(STATUS_OPTIONS).optional(),
+  corretorCaptadorId: z.string().optional(),
+  nomeProprietario: optionalStringField(),
+  telefoneProprietario: optionalStringField(),
+  enderecoCaptacao: optionalStringField(),
+});
+
+type ImovelFormValues = z.infer<typeof imovelCreateSchema>;
 
 type PreviewFile = {
   file: File;
   previewUrl: string;
 };
+
+type ImovelFormMode = 'create' | 'edit';
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_SIZE_MB = 5;
@@ -133,10 +161,98 @@ const formatPhone = (value: string) => {
   return numbers.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15);
 };
 
-export function ImovelCreate() {
+function getDefaultFormValues(defaultCorretorCaptadorId: string): ImovelFormValues {
+  return {
+    titulo: '',
+    tipo: 'Apartamento',
+    finalidade: 'Venda',
+    estado: '',
+    bairro: '',
+    cidade: '',
+    preco: 0,
+    descricao: '',
+    status: 'ATIVO',
+    corretorCaptadorId: defaultCorretorCaptadorId,
+    quartos: undefined,
+    metragem: undefined,
+    vagasGaragem: undefined,
+    banheiros: undefined,
+    suites: undefined,
+    linkExternoFotos: undefined,
+    linkExternoVideos: undefined,
+    nomeProprietario: undefined,
+    telefoneProprietario: undefined,
+    enderecoCaptacao: undefined,
+  };
+}
+
+function getTipoValue(tipo?: string | null): TipoImovel {
+  return tiposDeImovel.includes((tipo ?? '') as TipoImovel) ? ((tipo ?? 'Apartamento') as TipoImovel) : 'Apartamento';
+}
+
+function getFinalidadeValue(finalidade?: string | null): FinalidadeImovel {
+  return finalidade === FINALIDADE_LOCACAO ? FINALIDADE_LOCACAO : 'Venda';
+}
+
+function getStatusValue(status?: string | null): StatusImovel {
+  return status === 'INATIVO' ? 'INATIVO' : 'ATIVO';
+}
+
+function mapImovelToFormValues(imovel: Imovel, defaultCorretorCaptadorId: string): ImovelFormValues {
+  return {
+    ...getDefaultFormValues(defaultCorretorCaptadorId),
+    titulo: imovel.titulo ?? '',
+    tipo: getTipoValue(imovel.tipo),
+    finalidade: getFinalidadeValue(imovel.finalidade),
+    estado: imovel.estado ?? '',
+    bairro: imovel.bairro ?? '',
+    cidade: imovel.cidade ?? '',
+    preco: typeof imovel.preco === 'number' && Number.isFinite(imovel.preco) ? imovel.preco : 0,
+    descricao: imovel.descricao ?? '',
+    status: getStatusValue(imovel.status),
+    corretorCaptadorId:
+      imovel.corretorCaptadorId !== undefined && imovel.corretorCaptadorId !== null
+        ? String(imovel.corretorCaptadorId)
+        : defaultCorretorCaptadorId,
+    quartos: imovel.quartos ?? undefined,
+    metragem: imovel.metragem ?? undefined,
+    vagasGaragem: imovel.vagasGaragem ?? undefined,
+    banheiros: imovel.banheiros ?? undefined,
+    suites: imovel.suites ?? undefined,
+    linkExternoFotos: imovel.linkExternoFotos ?? undefined,
+    linkExternoVideos: imovel.linkExternoVideos ?? undefined,
+    nomeProprietario: undefined,
+    telefoneProprietario: undefined,
+    enderecoCaptacao: undefined,
+  };
+}
+
+function buildUpdatePayload(data: ImovelFormValues, precoInput: string): UpdateImovelPayload {
+  return {
+    titulo: data.titulo,
+    tipo: data.tipo,
+    finalidade: data.finalidade,
+    estado: data.estado,
+    bairro: data.bairro,
+    cidade: data.cidade,
+    preco: parseCurrencyToNumber(precoInput),
+    descricao: data.descricao,
+    quartos: data.quartos,
+    metragem: data.metragem,
+    vagasGaragem: data.vagasGaragem,
+    banheiros: data.banheiros,
+    suites: data.suites,
+    linkExternoFotos: data.linkExternoFotos ?? null,
+    linkExternoVideos: data.linkExternoVideos ?? null,
+  };
+}
+
+function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [selectedImages, setSelectedImages] = useState<PreviewFile[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -152,32 +268,37 @@ export function ImovelCreate() {
   const [isLoadingCidades, setIsLoadingCidades] = useState(false);
   const [estadosError, setEstadosError] = useState<string | null>(null);
   const [cidadesError, setCidadesError] = useState<string | null>(null);
+  const [isLoadingInitialData, setIsLoadingInitialData] = useState(mode === 'edit');
+  const isCreateMode = mode === 'create';
+  const isEditMode = mode === 'edit';
   const isCorretor = user?.role === 'CORRETOR';
   const defaultCorretorCaptadorId = user?.role === 'CORRETOR' ? String(user.id) : '';
+  const preserveCidadeOnStateLoadRef = useRef(false);
+
+  const formResolver = useMemo(
+    () => zodResolver(isCreateMode ? imovelCreateSchema : imovelEditSchema) as Resolver<ImovelFormValues>,
+    [isCreateMode],
+  );
 
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    getValues,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<ImovelFormData>({
-    resolver: zodResolver(imovelSchema),
-    defaultValues: {
-      finalidade: 'Venda',
-      status: 'ATIVO',
-      preco: 0,
-      tipo: 'Apartamento',
-      estado: '',
-      cidade: '',
-      corretorCaptadorId: defaultCorretorCaptadorId,
-    },
+  } = useForm<ImovelFormValues>({
+    resolver: formResolver,
+    defaultValues: getDefaultFormValues(defaultCorretorCaptadorId),
   });
 
   const isBusy = useMemo(() => isSubmitting || uploadProgress > 0, [isSubmitting, uploadProgress]);
   const selectedEstado = watch('estado');
   const selectedCorretorCaptadorId = watch('corretorCaptadorId');
+  const pageTitle = isCreateMode ? 'Cadastrar Imovel' : 'Editar Imovel';
+  const backPath = isEditMode ? (id ? `/imoveis/${id}` : '/imoveis') : '/app';
+  const backLabel = isEditMode ? 'Voltar para visualizacao' : 'Voltar';
 
   useEffect(
     () => () => {
@@ -201,6 +322,16 @@ export function ImovelCreate() {
         setIsLoadingEstados(false);
       }
     };
+
+    loadEstados();
+  }, []);
+
+  useEffect(() => {
+    if (!isCreateMode) {
+      setCorretoresCaptadores([]);
+      setCorretoresCaptadoresError(null);
+      return;
+    }
 
     const loadCorretoresCaptadores = async () => {
       setIsLoadingCorretoresCaptadores(true);
@@ -237,17 +368,26 @@ export function ImovelCreate() {
       }
     };
 
-    loadEstados();
     loadCorretoresCaptadores();
-  }, [isCorretor, setValue, user]);
+  }, [isCorretor, isCreateMode, setValue, user]);
 
   useEffect(() => {
-    setValue('cidade', '', { shouldDirty: false, shouldValidate: false });
+    if (!selectedEstado) {
+      setCidades([]);
+      setCidadesError(null);
+      setValue('cidade', '', { shouldDirty: false, shouldValidate: false });
+      preserveCidadeOnStateLoadRef.current = false;
+      return;
+    }
+
+    let isMounted = true;
+    const shouldPreserveCidade = preserveCidadeOnStateLoadRef.current;
+
     setCidades([]);
     setCidadesError(null);
 
-    if (!selectedEstado) {
-      return;
+    if (!shouldPreserveCidade) {
+      setValue('cidade', '', { shouldDirty: false, shouldValidate: false });
     }
 
     const loadCidades = async () => {
@@ -256,20 +396,46 @@ export function ImovelCreate() {
 
       try {
         const cidadesResponse = await getCidadesByEstadoRequest(selectedEstado);
+
+        if (!isMounted) {
+          return;
+        }
+
         setCidades(cidadesResponse);
+
+        if (shouldPreserveCidade) {
+          const currentCidade = getValues('cidade');
+          const cidadeExiste = cidadesResponse.some((cidade) => cidade.nome === currentCidade);
+
+          if (!cidadeExiste) {
+            setValue('cidade', '', { shouldDirty: false, shouldValidate: false });
+          }
+        }
       } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
         setCidades([]);
         setCidadesError(toFriendlyError(error, 'Nao foi possivel carregar as cidades do estado selecionado.'));
       } finally {
-        setIsLoadingCidades(false);
+        if (isMounted) {
+          setIsLoadingCidades(false);
+        }
+
+        preserveCidadeOnStateLoadRef.current = false;
       }
     };
 
     loadCidades();
-  }, [selectedEstado, setValue]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [getValues, selectedEstado, setValue]);
 
   useEffect(() => {
-    if (!isCorretor || !defaultCorretorCaptadorId) {
+    if (!isCorretor || !defaultCorretorCaptadorId || !isCreateMode) {
       return;
     }
 
@@ -277,17 +443,97 @@ export function ImovelCreate() {
       shouldDirty: false,
       shouldValidate: false,
     });
-  }, [defaultCorretorCaptadorId, isCorretor, setValue]);
+  }, [defaultCorretorCaptadorId, isCorretor, isCreateMode, setValue]);
 
   useEffect(() => {
-    if (!isSuccessModalOpen) return;
+    if (!isEditMode) {
+      setIsLoadingInitialData(false);
+      setPageError(null);
+      return;
+    }
+
+    if (!id) {
+      setPageError('Imovel nao encontrado.');
+      setIsLoadingInitialData(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadImovel = async () => {
+      setIsLoadingInitialData(true);
+      setPageError(null);
+      setGlobalError(null);
+
+      try {
+        const response = await getImovelById(id);
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!canEditImovel(user, response)) {
+          setPageError('Voce nao tem permissao para editar este imovel.');
+          return;
+        }
+
+        preserveCidadeOnStateLoadRef.current = true;
+        reset(mapImovelToFormValues(response, defaultCorretorCaptadorId));
+        setPrecoInput(currencyFormatter.format(response.preco ?? 0));
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        if (axios.isAxiosError(error) && error.response?.status === 403) {
+          setPageError('Voce nao tem permissao para editar este imovel.');
+        } else if (axios.isAxiosError(error) && error.response?.status === 404) {
+          setPageError('Imovel nao encontrado.');
+        } else {
+          setPageError(toFriendlyError(error, 'Nao foi possivel carregar os dados do imovel.'));
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingInitialData(false);
+        }
+      }
+    };
+
+    loadImovel();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [defaultCorretorCaptadorId, id, isEditMode, reset, user]);
+
+  const navigateAfterSuccess = () => {
+    if (isCreateMode) {
+      navigate('/imoveis', { replace: true });
+      return;
+    }
+
+    if (id) {
+      navigate(`/imoveis/${id}`, {
+        replace: true,
+        state: { successMessage: 'Imovel atualizado com sucesso.' },
+      });
+      return;
+    }
+
+    navigate('/imoveis', { replace: true });
+  };
+
+  useEffect(() => {
+    if (!isSuccessModalOpen) {
+      return;
+    }
 
     const timeout = window.setTimeout(() => {
-      navigate('/imoveis', { replace: true });
+      navigateAfterSuccess();
     }, 1500);
 
     return () => window.clearTimeout(timeout);
-  }, [isSuccessModalOpen, navigate]);
+  }, [id, isCreateMode, isSuccessModalOpen, navigate]);
 
   const handleImageSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -313,7 +559,6 @@ export function ImovelCreate() {
     setSelectedImages((previous) => {
       const existingKeys = new Set(previous.map((image) => `${image.file.name}-${image.file.lastModified}-${image.file.size}`));
       const newFiles = files.filter((file) => !existingKeys.has(`${file.name}-${file.lastModified}-${file.size}`));
-
       const availableSlots = Math.max(0, MAX_IMAGES - previous.length);
       const filesToAdd = newFiles.slice(0, availableSlots);
 
@@ -353,33 +598,33 @@ export function ImovelCreate() {
     setUploadProgress(0);
     setImageError(null);
     setPrecoInput('R$ 0,00');
-    reset({
-      titulo: '',
-      tipo: 'Apartamento',
-      estado: '',
-      finalidade: 'Venda',
-      bairro: '',
-      cidade: '',
-      preco: 0,
-      descricao: '',
-      status: 'ATIVO',
-      corretorCaptadorId: defaultCorretorCaptadorId,
-      quartos: undefined,
-      metragem: undefined,
-      vagasGaragem: undefined,
-      banheiros: undefined,
-      suites: undefined,
-      linkExternoFotos: undefined,
-      linkExternoVideos: undefined,
-      nomeProprietario: undefined,
-      telefoneProprietario: undefined,
-      enderecoCaptacao: undefined,
-    });
+    reset(getDefaultFormValues(defaultCorretorCaptadorId));
   };
 
-  const onSubmit = async (data: ImovelFormData) => {
+  const onSubmit = async (data: ImovelFormValues) => {
     setGlobalError(null);
     setImageError(null);
+
+    if (isEditMode) {
+      if (!id) {
+        setGlobalError('Imovel nao encontrado.');
+        return;
+      }
+
+      try {
+        await updateImovel(id, buildUpdatePayload(data, precoInput));
+        setSuccessMessage('Imovel atualizado com sucesso.');
+        setIsSuccessModalOpen(true);
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 403) {
+          setGlobalError('Voce nao tem permissao para editar este imovel.');
+        } else {
+          setGlobalError(toFriendlyError(error, 'Nao foi possivel atualizar o imovel. Verifique os dados e tente novamente.'));
+        }
+      }
+
+      return;
+    }
 
     const selectedImageFiles = selectedImages
       .map((image) => image.file)
@@ -451,16 +696,50 @@ export function ImovelCreate() {
 
   const handleSuccessClose = () => {
     setIsSuccessModalOpen(false);
-    navigate('/imoveis', { replace: true });
+    navigateAfterSuccess();
   };
+
+  if (isEditMode && isLoadingInitialData) {
+    return (
+      <main className="content-page">
+        <section className="feature-card form-card imovel-form-card">
+          <div className="row page-header-row">
+            <h1>{pageTitle}</h1>
+            <button className="secondary" type="button" onClick={() => navigate(backPath)}>
+              {backLabel}
+            </button>
+          </div>
+
+          <p>Carregando dados do imovel...</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (isEditMode && pageError) {
+    return (
+      <main className="content-page">
+        <section className="feature-card form-card imovel-form-card">
+          <div className="row page-header-row">
+            <h1>{pageTitle}</h1>
+            <button className="secondary" type="button" onClick={() => navigate(backPath)}>
+              {backLabel}
+            </button>
+          </div>
+
+          <div className="global-error">{pageError}</div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="content-page">
       <section className="feature-card form-card imovel-form-card">
         <div className="row page-header-row">
-          <h1>Cadastrar Imovel</h1>
-          <button className="secondary" type="button" onClick={() => navigate('/app')}>
-            Voltar
+          <h1>{pageTitle}</h1>
+          <button className="secondary" type="button" onClick={() => navigate(backPath)}>
+            {backLabel}
           </button>
         </div>
 
@@ -552,14 +831,16 @@ export function ImovelCreate() {
               {errors.preco && <span className="error-text">{errors.preco.message}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="status">Status*</label>
-              <select id="status" {...register('status')}>
-                <option value="ATIVO">ATIVO</option>
-                <option value="INATIVO">INATIVO</option>
-              </select>
-              {errors.status && <span className="error-text">{errors.status.message}</span>}
-            </div>
+            {isCreateMode && (
+              <div className="form-group">
+                <label htmlFor="status">Status*</label>
+                <select id="status" {...register('status')}>
+                  <option value="ATIVO">ATIVO</option>
+                  <option value="INATIVO">INATIVO</option>
+                </select>
+                {errors.status && <span className="error-text">{errors.status.message}</span>}
+              </div>
+            )}
           </div>
 
           <div className="form-grid">
@@ -597,16 +878,33 @@ export function ImovelCreate() {
               {errors.suites && <span className="error-text">{errors.suites.message}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="corretorCaptadorId">Corretor captador*</label>
-              {isCorretor ? (
-                <>
-                  <input type="hidden" {...register('corretorCaptadorId')} />
+            {isCreateMode && (
+              <div className="form-group">
+                <label htmlFor="corretorCaptadorId">Corretor captador*</label>
+                {isCorretor ? (
+                  <>
+                    <input type="hidden" {...register('corretorCaptadorId')} />
+                    <select
+                      id="corretorCaptadorId"
+                      value={selectedCorretorCaptadorId ?? ''}
+                      onChange={() => undefined}
+                      disabled
+                    >
+                      <option value="">
+                        {isLoadingCorretoresCaptadores ? 'Carregando usuarios...' : 'Selecione um corretor captador'}
+                      </option>
+                      {corretoresCaptadores.map((usuario) => (
+                        <option key={usuario.id} value={String(usuario.id)}>
+                          {usuario.nome} ({usuario.role})
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
                   <select
                     id="corretorCaptadorId"
-                    value={selectedCorretorCaptadorId ?? ''}
-                    onChange={() => undefined}
-                    disabled
+                    {...register('corretorCaptadorId')}
+                    disabled={isLoadingCorretoresCaptadores || isBusy}
                   >
                     <option value="">
                       {isLoadingCorretoresCaptadores ? 'Carregando usuarios...' : 'Selecione um corretor captador'}
@@ -617,26 +915,11 @@ export function ImovelCreate() {
                       </option>
                     ))}
                   </select>
-                </>
-              ) : (
-                <select
-                  id="corretorCaptadorId"
-                  {...register('corretorCaptadorId')}
-                  disabled={isLoadingCorretoresCaptadores || isBusy}
-                >
-                  <option value="">
-                    {isLoadingCorretoresCaptadores ? 'Carregando usuarios...' : 'Selecione um corretor captador'}
-                  </option>
-                  {corretoresCaptadores.map((usuario) => (
-                    <option key={usuario.id} value={String(usuario.id)}>
-                      {usuario.nome} ({usuario.role})
-                    </option>
-                  ))}
-                </select>
-              )}
-              {errors.corretorCaptadorId && <span className="error-text">{errors.corretorCaptadorId.message}</span>}
-              {corretoresCaptadoresError && <span className="error-text">{corretoresCaptadoresError}</span>}
-            </div>
+                )}
+                {errors.corretorCaptadorId && <span className="error-text">{errors.corretorCaptadorId.message}</span>}
+                {corretoresCaptadoresError && <span className="error-text">{corretoresCaptadoresError}</span>}
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -645,37 +928,41 @@ export function ImovelCreate() {
             {errors.descricao && <span className="error-text">{errors.descricao.message}</span>}
           </div>
 
-          <div className="form-grid">
-            <div className="form-group">
-              <label htmlFor="nomeProprietario">Nome do proprietario</label>
-              <input id="nomeProprietario" type="text" {...register('nomeProprietario')} />
-              {errors.nomeProprietario && <span className="error-text">{errors.nomeProprietario.message}</span>}
-            </div>
+          {isCreateMode && (
+            <>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="nomeProprietario">Nome do proprietario</label>
+                  <input id="nomeProprietario" type="text" {...register('nomeProprietario')} />
+                  {errors.nomeProprietario && <span className="error-text">{errors.nomeProprietario.message}</span>}
+                </div>
 
-            <div className="form-group">
-              <label htmlFor="telefoneProprietario">Telefone</label>
-              <input
-                id="telefoneProprietario"
-                type="tel"
-                inputMode="tel"
-                placeholder="(11) 99999-9999"
-                {...register('telefoneProprietario', {
-                  onChange: (event) => {
-                    setValue('telefoneProprietario', formatPhone(event.target.value), {
-                      shouldDirty: true,
-                    });
-                  },
-                })}
-              />
-              {errors.telefoneProprietario && <span className="error-text">{errors.telefoneProprietario.message}</span>}
-            </div>
-          </div>
+                <div className="form-group">
+                  <label htmlFor="telefoneProprietario">Telefone</label>
+                  <input
+                    id="telefoneProprietario"
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="(11) 99999-9999"
+                    {...register('telefoneProprietario', {
+                      onChange: (event) => {
+                        setValue('telefoneProprietario', formatPhone(event.target.value), {
+                          shouldDirty: true,
+                        });
+                      },
+                    })}
+                  />
+                  {errors.telefoneProprietario && <span className="error-text">{errors.telefoneProprietario.message}</span>}
+                </div>
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="enderecoCaptacao">Endereco da captacao</label>
-            <textarea id="enderecoCaptacao" rows={3} {...register('enderecoCaptacao')} />
-            {errors.enderecoCaptacao && <span className="error-text">{errors.enderecoCaptacao.message}</span>}
-          </div>
+              <div className="form-group">
+                <label htmlFor="enderecoCaptacao">Endereco da captacao</label>
+                <textarea id="enderecoCaptacao" rows={3} {...register('enderecoCaptacao')} />
+                {errors.enderecoCaptacao && <span className="error-text">{errors.enderecoCaptacao.message}</span>}
+              </div>
+            </>
+          )}
 
           <div className="form-grid">
             <div className="form-group">
@@ -691,47 +978,51 @@ export function ImovelCreate() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="imagens">Imagens do imovel</label>
-            <input
-              id="imagens"
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp"
-              multiple
-              onChange={handleImageSelection}
-              disabled={isBusy}
-            />
-            <small className="hint-text">
-              {selectedImages.length} imagem(ns) selecionada(s). Maximo de {MAX_IMAGES} arquivos, ate {MAX_IMAGE_SIZE_MB}MB cada.
-            </small>
-            {imageError && <span className="error-text">{imageError}</span>}
-          </div>
+          {isCreateMode && (
+            <>
+              <div className="form-group">
+                <label htmlFor="imagens">Imagens do imovel</label>
+                <input
+                  id="imagens"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  multiple
+                  onChange={handleImageSelection}
+                  disabled={isBusy}
+                />
+                <small className="hint-text">
+                  {selectedImages.length} imagem(ns) selecionada(s). Maximo de {MAX_IMAGES} arquivos, ate {MAX_IMAGE_SIZE_MB}MB cada.
+                </small>
+                {imageError && <span className="error-text">{imageError}</span>}
+              </div>
 
-          {selectedImages.length > 0 && (
-            <div className="image-preview-grid">
-              {selectedImages.map((image) => (
-                <figure key={`${image.file.name}-${image.file.lastModified}`} className="image-preview-card">
-                  <img src={image.previewUrl} alt={image.file.name} />
-                  <figcaption>{image.file.name}</figcaption>
-                  <button
-                    type="button"
-                    className="image-remove-btn"
-                    onClick={() => removeImage(image.file.name, image.file.lastModified)}
-                    disabled={isBusy}
-                  >
-                    Remover
-                  </button>
-                </figure>
-              ))}
-            </div>
-          )}
+              {selectedImages.length > 0 && (
+                <div className="image-preview-grid">
+                  {selectedImages.map((image) => (
+                    <figure key={`${image.file.name}-${image.file.lastModified}`} className="image-preview-card">
+                      <img src={image.previewUrl} alt={image.file.name} />
+                      <figcaption>{image.file.name}</figcaption>
+                      <button
+                        type="button"
+                        className="image-remove-btn"
+                        onClick={() => removeImage(image.file.name, image.file.lastModified)}
+                        disabled={isBusy}
+                      >
+                        Remover
+                      </button>
+                    </figure>
+                  ))}
+                </div>
+              )}
 
-          {isBusy && selectedImages.length > 0 && uploadProgress > 0 && (
-            <div className="hint-text">Upload de imagens: {uploadProgress}%</div>
+              {isBusy && selectedImages.length > 0 && uploadProgress > 0 && (
+                <div className="hint-text">Upload de imagens: {uploadProgress}%</div>
+              )}
+            </>
           )}
 
           <button className="primary" type="submit" disabled={isBusy}>
-            {isBusy ? 'Salvando...' : 'Salvar'}
+            {isBusy ? 'Salvando...' : isCreateMode ? 'Salvar' : 'Salvar alteracoes'}
           </button>
         </form>
       </section>
@@ -739,7 +1030,7 @@ export function ImovelCreate() {
       {isSuccessModalOpen && (
         <div className="modal-backdrop" role="presentation">
           <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title">
-            <h2 id="success-title">Imovel cadastrado com sucesso</h2>
+            <h2 id="success-title">{isCreateMode ? 'Imovel cadastrado com sucesso' : 'Imovel atualizado com sucesso'}</h2>
             <p>{successMessage}</p>
             <button className="primary" type="button" onClick={handleSuccessClose}>
               OK
@@ -749,4 +1040,12 @@ export function ImovelCreate() {
       )}
     </main>
   );
+}
+
+export function ImovelCreate() {
+  return <ImovelFormPage mode="create" />;
+}
+
+export function ImovelEdit() {
+  return <ImovelFormPage mode="edit" />;
 }

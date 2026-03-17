@@ -59,6 +59,24 @@ export type CreateImovelPayload = {
   enderecoCaptacao?: string | null;
 };
 
+export type UpdateImovelPayload = {
+  titulo: string;
+  tipo: TipoImovel;
+  finalidade: FinalidadeImovel;
+  estado: string;
+  bairro: string;
+  cidade: string;
+  preco: number;
+  descricao: string;
+  quartos?: number | null;
+  metragem?: number | null;
+  vagasGaragem?: number | null;
+  banheiros?: number | null;
+  suites?: number | null;
+  linkExternoFotos?: string | null;
+  linkExternoVideos?: string | null;
+};
+
 type CreateImovelResponse = {
   data?: {
     id?: string | number;
@@ -83,6 +101,11 @@ export type Imovel = {
   preco: number;
   descricao?: string;
   status: StatusImovel | string;
+  motivoInativacao?: MotivoInativacaoImovel | string | null;
+  descricaoInativacao?: string | null;
+  atualizadoPorNome?: string | null;
+  inativadoPorNome?: string | null;
+  responsavelFechamentoNome?: string | null;
   createdAt?: string;
   updatedAt?: string;
   responsavelId?: string | number;
@@ -116,6 +139,14 @@ type RawUsuarioResumo = RawPessoaRelacionada & {
   name?: string;
   perfil?: string;
   role?: string;
+  usuario?: {
+    nome?: string;
+    name?: string;
+  } | null;
+  user?: {
+    nome?: string;
+    name?: string;
+  } | null;
 };
 
 type RawImovel = Omit<Imovel, 'imagens' | 'responsavelId' | 'corretorCaptador' | 'estado'> & {
@@ -123,6 +154,37 @@ type RawImovel = Omit<Imovel, 'imagens' | 'responsavelId' | 'corretorCaptador' |
   uf?: string;
   estadoSigla?: string;
   estadoNome?: string;
+  motivoInativacao?: MotivoInativacaoImovel | string | null;
+  motivo_inativacao?: MotivoInativacaoImovel | string | null;
+  inactivationReason?: MotivoInativacaoImovel | string | null;
+  motivo?: MotivoInativacaoImovel | string | null;
+  descricaoInativacao?: string | null;
+  descricao_inativacao?: string | null;
+  inactivationDescription?: string | null;
+  descricaoMotivo?: string | null;
+  motivoDescricao?: string | null;
+  atualizadoPorNome?: string | null;
+  updatedByName?: string | null;
+  updatedByNome?: string | null;
+  updatedBy?: RawUsuarioResumo | string | null;
+  updatedByUser?: RawUsuarioResumo | null;
+  atualizadoPor?: RawUsuarioResumo | string | null;
+  usuarioAtualizacao?: RawUsuarioResumo | string | null;
+  updatedUser?: RawUsuarioResumo | null;
+  inativadoPorNome?: string | null;
+  usuarioInativadorNome?: string | null;
+  inactivatedByName?: string | null;
+  usuarioInativador?: RawUsuarioResumo | string | null;
+  inactivatedBy?: RawUsuarioResumo | string | null;
+  inactivatedByUser?: RawUsuarioResumo | null;
+  usuarioInativacao?: RawUsuarioResumo | string | null;
+  responsavelFechamentoNome?: string | null;
+  closingBrokerName?: string | null;
+  corretorFechamentoNome?: string | null;
+  responsavelFechamento?: RawUsuarioResumo | string | null;
+  responsavelFechamentoUser?: RawUsuarioResumo | null;
+  corretorFechamento?: RawUsuarioResumo | string | null;
+  corretorInativacao?: RawUsuarioResumo | string | null;
   imagens?: ImagemImovel[] | null;
   imagem?: string;
   foto?: string;
@@ -240,12 +302,74 @@ function normalizeUsuarioResumo(usuario?: RawUsuarioResumo | null): UsuarioResum
   };
 }
 
+function normalizeNomeRelacionado(value?: RawUsuarioResumo | string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim();
+    return trimmedValue.length > 0 ? trimmedValue : null;
+  }
+
+  const directName = value.nome ?? value.name ?? value.usuario?.nome ?? value.usuario?.name ?? value.user?.nome ?? value.user?.name;
+  if (typeof directName === 'string') {
+    const trimmedValue = directName.trim();
+    if (trimmedValue.length > 0) {
+      return trimmedValue;
+    }
+  }
+
+  const normalizedUsuario = normalizeUsuarioResumo(value);
+  return normalizedUsuario?.nome ?? null;
+}
+
 function normalizeImovel(rawImovel: RawImovel): Imovel {
   const corretorCaptador = normalizeUsuarioResumo(rawImovel.corretorCaptador);
+  const atualizadoPorNome =
+    rawImovel.atualizadoPorNome ??
+    rawImovel.updatedByName ??
+    rawImovel.updatedByNome ??
+    normalizeNomeRelacionado(rawImovel.updatedBy) ??
+    normalizeNomeRelacionado(rawImovel.updatedByUser) ??
+    normalizeNomeRelacionado(rawImovel.atualizadoPor) ??
+    normalizeNomeRelacionado(rawImovel.usuarioAtualizacao) ??
+    normalizeNomeRelacionado(rawImovel.updatedUser) ??
+    null;
+  const inativadoPorNome =
+    rawImovel.inativadoPorNome ??
+    rawImovel.usuarioInativadorNome ??
+    rawImovel.inactivatedByName ??
+    normalizeNomeRelacionado(rawImovel.usuarioInativador) ??
+    normalizeNomeRelacionado(rawImovel.inactivatedBy) ??
+    normalizeNomeRelacionado(rawImovel.inactivatedByUser) ??
+    normalizeNomeRelacionado(rawImovel.usuarioInativacao) ??
+    null;
+  const responsavelFechamentoNome =
+    rawImovel.responsavelFechamentoNome ??
+    rawImovel.closingBrokerName ??
+    rawImovel.corretorFechamentoNome ??
+    normalizeNomeRelacionado(rawImovel.responsavelFechamento) ??
+    normalizeNomeRelacionado(rawImovel.responsavelFechamentoUser) ??
+    normalizeNomeRelacionado(rawImovel.corretorFechamento) ??
+    normalizeNomeRelacionado(rawImovel.corretorInativacao) ??
+    null;
 
   return {
     ...rawImovel,
     estado: rawImovel.estado ?? rawImovel.uf ?? rawImovel.estadoSigla ?? rawImovel.estadoNome ?? '',
+    motivoInativacao:
+      rawImovel.motivoInativacao ?? rawImovel.motivo_inativacao ?? rawImovel.inactivationReason ?? rawImovel.motivo ?? null,
+    descricaoInativacao:
+      rawImovel.descricaoInativacao ??
+      rawImovel.descricao_inativacao ??
+      rawImovel.inactivationDescription ??
+      rawImovel.descricaoMotivo ??
+      rawImovel.motivoDescricao ??
+      null,
+    atualizadoPorNome,
+    inativadoPorNome,
+    responsavelFechamentoNome,
     responsavelId:
       rawImovel.responsavelId ??
       rawImovel.corretorResponsavelId ??
@@ -287,6 +411,11 @@ function normalizeDadosCaptacao(rawDadosCaptacao?: RawDadosCaptacaoImovel | null
 
 export async function createImovel(payload: CreateImovelPayload) {
   const { data } = await apiClient.post<CreateImovelResponse>(imoveisEndpoints.create, payload);
+  return data;
+}
+
+export async function updateImovel(imovelId: string | number, payload: UpdateImovelPayload) {
+  const { data } = await apiClient.put(imoveisEndpoints.update(imovelId), payload);
   return data;
 }
 
@@ -350,6 +479,11 @@ export async function inativarImovel(imovelId: string | number, payload: Inativa
     data: payload,
   });
 
+  return data;
+}
+
+export async function ativarImovel(imovelId: string | number) {
+  const { data } = await apiClient.patch(imoveisEndpoints.activate(imovelId));
   return data;
 }
 

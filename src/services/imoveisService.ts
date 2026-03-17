@@ -1,4 +1,5 @@
 export {
+  ativarImovel,
   createImovel,
   createImovelWithImages,
   getDadosCaptacaoImovel,
@@ -7,6 +8,7 @@ export {
   getImovelById,
   inativarImovel,
   motivoInativacaoImovelOptions,
+  updateImovel,
   uploadImovelImages,
   type CreateImovelPayload,
   type DadosCaptacaoImovel,
@@ -19,5 +21,6 @@ export {
   type MotivoInativacaoImovel,
   type StatusImovel,
   type TipoImovel,
+  type UpdateImovelPayload,
   type UsuarioResumo,
 } from './imoveis';

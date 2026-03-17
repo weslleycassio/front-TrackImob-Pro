@@ -8,6 +8,7 @@ import { ImoveisFiltro } from '../../components/imoveis/ImoveisFiltro';
 import { ImoveisPaginacao } from '../../components/imoveis/ImoveisPaginacao';
 import { ImoveisTabela } from '../../components/imoveis/ImoveisTabela';
 import {
+  ativarImovel,
   getImoveis,
   inativarImovel,
   type GetImoveisFilters,
@@ -16,6 +17,8 @@ import {
 } from '../../services/imoveisService';
 import { useAuth } from '../../auth/useAuth';
 import { toFriendlyError } from '../../utils/errorMessages';
+import { canEditImovel } from '../../utils/imovelPermissions';
+import { canActivateImovel } from '../../utils/imovelStatus';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -56,6 +59,7 @@ export function ConsultaImoveisPage() {
   const [total, setTotal] = useState<number | undefined>(undefined);
   const [selectedImovel, setSelectedImovel] = useState<Imovel | null>(null);
   const [isInactivating, setIsInactivating] = useState(false);
+  const [activatingImovelId, setActivatingImovelId] = useState<string | number | null>(null);
   const [inactivationError, setInactivationError] = useState<string | null>(null);
   const [usuariosFechamento, setUsuariosFechamento] = useState<User[]>([]);
   const [isLoadingUsuariosFechamento, setIsLoadingUsuariosFechamento] = useState(false);
@@ -175,6 +179,26 @@ export function ConsultaImoveisPage() {
     navigate(`/imoveis/${imovel.id}`);
   };
 
+  const handleEditarImovel = (imovel: Imovel) => {
+    navigate(`/imoveis/${imovel.id}/editar`);
+  };
+
+  const handleAtivarImovel = async (imovel: Imovel) => {
+    setSuccessMessage(null);
+    setError(null);
+    setActivatingImovelId(imovel.id);
+
+    try {
+      await ativarImovel(imovel.id);
+      setSuccessMessage('Imovel ativado com sucesso.');
+      await loadImoveis();
+    } catch (apiError) {
+      setError(toFriendlyError(apiError, 'Nao foi possivel ativar o imovel. Tente novamente.'));
+    } finally {
+      setActivatingImovelId(null);
+    }
+  };
+
   const closeInactivationModal = () => {
     if (isInactivating) {
       return;
@@ -260,8 +284,13 @@ export function ConsultaImoveisPage() {
               imoveis={imoveis}
               formatCurrency={(value) => currencyFormatter.format(value)}
               formatDate={(date) => (date ? dateFormatter.format(new Date(date)) : '-')}
-              canInativar={canInativarImovel}
+              canEdit={(imovel) => canEditImovel(user, imovel)}
+              canActivate={(imovel) => canInativarImovel(imovel) && canActivateImovel(imovel)}
+              canInativar={(imovel) => canInativarImovel(imovel) && String(imovel.status).toUpperCase() !== 'INATIVO'}
+              activatingImovelId={activatingImovelId}
               onVisualizar={handleVisualizarImovel}
+              onEditar={handleEditarImovel}
+              onAtivar={handleAtivarImovel}
               onInativar={openInactivationModal}
             />
             <ImoveisPaginacao
