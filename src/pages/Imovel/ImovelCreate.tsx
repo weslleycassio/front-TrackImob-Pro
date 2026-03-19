@@ -72,6 +72,23 @@ const optionalStringField = () =>
     z.string().optional(),
   );
 
+const optionalExternalLinkField = (fieldLabel: string) =>
+  z.preprocess(
+    (value) => {
+      if (value === null || value === undefined) {
+        return undefined;
+      }
+
+      if (typeof value !== 'string') {
+        return value;
+      }
+
+      const trimmedValue = value.trim();
+      return trimmedValue === '' ? undefined : trimmedValue;
+    },
+    z.string().url(`${fieldLabel} deve ser uma URL valida`).optional(),
+  );
+
 const imovelCommonSchema = z.object({
   titulo: z.string().trim().min(1, 'Titulo e obrigatorio'),
   tipo: z.enum(tiposDeImovel, { required_error: 'Tipo e obrigatorio' }),
@@ -88,8 +105,8 @@ const imovelCommonSchema = z.object({
   vagasGaragem: optionalIntegerField('Vagas de garagem'),
   banheiros: optionalIntegerField('Banheiros'),
   suites: optionalIntegerField('Suites'),
-  linkExternoFotos: optionalStringField(),
-  linkExternoVideos: optionalStringField(),
+  linkExternoFotos: optionalExternalLinkField('Link externo de fotos'),
+  linkExternoVideos: optionalExternalLinkField('Link externo de videos'),
 });
 
 const imovelCreateSchema = imovelCommonSchema.extend({
@@ -178,8 +195,8 @@ function getDefaultFormValues(defaultCorretorCaptadorId: string): ImovelFormValu
     vagasGaragem: undefined,
     banheiros: undefined,
     suites: undefined,
-    linkExternoFotos: undefined,
-    linkExternoVideos: undefined,
+    linkExternoFotos: '',
+    linkExternoVideos: '',
     nomeProprietario: undefined,
     telefoneProprietario: undefined,
     enderecoCaptacao: undefined,
@@ -219,15 +236,27 @@ function mapImovelToFormValues(imovel: Imovel, defaultCorretorCaptadorId: string
     vagasGaragem: imovel.vagasGaragem ?? undefined,
     banheiros: imovel.banheiros ?? undefined,
     suites: imovel.suites ?? undefined,
-    linkExternoFotos: imovel.linkExternoFotos ?? undefined,
-    linkExternoVideos: imovel.linkExternoVideos ?? undefined,
+    linkExternoFotos: imovel.linkExternoFotos ?? '',
+    linkExternoVideos: imovel.linkExternoVideos ?? '',
     nomeProprietario: undefined,
     telefoneProprietario: undefined,
     enderecoCaptacao: undefined,
   };
 }
 
+function sanitizeOptionalPayloadString(value?: string | null): string | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue === '' ? undefined : trimmedValue;
+}
+
 function buildUpdatePayload(data: ImovelFormValues, precoInput: string): UpdateImovelPayload {
+  const linkExternoFotos = sanitizeOptionalPayloadString(data.linkExternoFotos);
+  const linkExternoVideos = sanitizeOptionalPayloadString(data.linkExternoVideos);
+
   return {
     titulo: data.titulo,
     tipo: data.tipo,
@@ -242,8 +271,8 @@ function buildUpdatePayload(data: ImovelFormValues, precoInput: string): UpdateI
     vagasGaragem: data.vagasGaragem,
     banheiros: data.banheiros,
     suites: data.suites,
-    linkExternoFotos: data.linkExternoFotos ?? null,
-    linkExternoVideos: data.linkExternoVideos ?? null,
+    ...(linkExternoFotos ? { linkExternoFotos } : {}),
+    ...(linkExternoVideos ? { linkExternoVideos } : {}),
   };
 }
 
@@ -632,6 +661,8 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
 
     try {
       const precoNumber = parseCurrencyToNumber(precoInput);
+      const linkExternoFotos = sanitizeOptionalPayloadString(data.linkExternoFotos);
+      const linkExternoVideos = sanitizeOptionalPayloadString(data.linkExternoVideos);
 
       const payload = {
         titulo: data.titulo,
@@ -649,8 +680,8 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
         vagasGaragem: data.vagasGaragem,
         banheiros: data.banheiros,
         suites: data.suites,
-        linkExternoFotos: data.linkExternoFotos ?? null,
-        linkExternoVideos: data.linkExternoVideos ?? null,
+        ...(linkExternoFotos ? { linkExternoFotos } : {}),
+        ...(linkExternoVideos ? { linkExternoVideos } : {}),
         nomeProprietario: data.nomeProprietario ?? null,
         telefoneProprietario: data.telefoneProprietario ?? null,
         enderecoCaptacao: data.enderecoCaptacao ?? null,
