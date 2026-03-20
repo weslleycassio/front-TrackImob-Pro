@@ -1,11 +1,21 @@
 import { AxiosError } from 'axios';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-
 import { getUsersRequest, updateUserRequest } from '../../api/usersService';
 import type { UpdateUserRequest, User, UserRole } from '../../api/types';
-
 import { useAuth } from '../../auth/useAuth';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Input } from '../../components/ui/Input';
+import { Modal } from '../../components/ui/Modal';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Select } from '../../components/ui/Select';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { Table, TableContainer } from '../../components/ui/Table';
+import { Toast } from '../../components/ui/Toast';
+import { APP_NAME } from '../../config/app';
 
 const roleLabel: Record<UserRole, string> = {
   ADMIN: 'Administrador',
@@ -32,7 +42,6 @@ type EditFormData = {
   role: UserRole;
   telefone: string;
   ativo: boolean;
-
 };
 
 export function ListUsers() {
@@ -41,9 +50,7 @@ export function ListUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [error, setError] = useState<string | null>(
-    location.state && (location.state as { forbidden?: boolean }).forbidden
-      ? 'Sem permissão (403)'
-      : null,
+    location.state && (location.state as { forbidden?: boolean }).forbidden ? 'Sem permissao para acessar usuarios.' : null,
   );
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -59,6 +66,7 @@ export function ListUsers() {
   const loadUsers = async () => {
     setLoading(true);
     setError(null);
+
     try {
       const response = await getUsersRequest();
       setUsers(response.data);
@@ -66,9 +74,9 @@ export function ListUsers() {
     } catch (err) {
       const errorResponse = err as AxiosError;
       if (errorResponse.response?.status === 403) {
-        setError('Sem permissão (403)');
+        setError('Sem permissao para acessar usuarios.');
       } else {
-        setError('Erro ao carregar usuários.');
+        setError('Erro ao carregar usuarios.');
       }
     } finally {
       setLoading(false);
@@ -116,11 +124,11 @@ export function ListUsers() {
 
     try {
       await updateUserRequest(String(editingUser.id), payload);
-      setSuccessMessage('Usuário atualizado com sucesso');
+      setSuccessMessage('Usuario atualizado com sucesso.');
       setEditingUser(null);
       await loadUsers();
     } catch {
-      setEditError('Erro ao atualizar usuário');
+      setEditError('Erro ao atualizar usuario.');
     } finally {
       setIsSaving(false);
     }
@@ -129,132 +137,155 @@ export function ListUsers() {
   const showActions = user?.role === 'ADMIN';
 
   return (
-    <section className="card">
-      <div className="row">
-        <h1>Usuários</h1>
-        {showActions && (
-          <Link className="link-button" to="/app/usuarios/cadastrar">
-            Cadastrar usuário
-          </Link>
-        )}
-      </div>
+    <main className="content-page">
+      <PageHeader
+        title="Usuarios"
+        subtitle="Controle equipe, papeis e disponibilidade com uma visao mais organizada."
+        actions={
+          showActions ? (
+            <Link to="/app/usuarios/cadastrar">
+              <Button>Cadastrar usuario</Button>
+            </Link>
+          ) : null
+        }
+      />
 
-      {successMessage && <div className="global-success">{successMessage}</div>}
-
-      {!loading && !error && <p>Total de usuários: {totalUsers}</p>}
-
-      {error && <div className="global-error">{error}</div>}
-
-      {loading && <p>Carregando usuários...</p>}
-
-      {!loading && !error && users.length === 0 && <p>Nenhum usuário encontrado.</p>}
-
-      {!loading && !error && users.length > 0 && (
-        <div className="users-table-wrapper">
-          <table className="users-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>E-mail</th>
-              <th>Telefone</th>
-              <th>Função</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((item) => (
-              <tr key={item.id}>
-                <td>{item.nome}</td>
-                <td>{item.email}</td>
-                <td>{item.telefone}</td>
-                <td>{roleLabel[item.role] ?? item.role}</td>
-                <td className="users-actions-cell">
-                  {showActions ? (
-                    <button type="button" className="secondary action-button" onClick={() => openEditModal(item)}>
-                      Editar
-                    </button>
-                  ) : (
-                    '-'
-                  )}
-                  <span
-                    className={`status-dot ${item.ativo ? 'status-dot-active' : 'status-dot-inactive'}`}
-                    aria-label={item.ativo ? 'Usuário ativo' : 'Usuário inativo'}
-                    title={item.ativo ? 'Usuário ativo' : 'Usuário inativo'}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          </table>
+      {successMessage ? (
+        <div className="toast-stack">
+          <Toast title="Equipe atualizada" description={successMessage} variant="success" onClose={() => setSuccessMessage(null)} />
         </div>
-      )}
+      ) : null}
 
-      {editingUser && (
-        <div className="modal-backdrop" role="presentation">
-          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="edit-user-title">
-            <h2 id="edit-user-title">Editar usuário</h2>
-            <p className="info-text">{editingUser.nome}</p>
+      <Card
+        title="Equipe cadastrada"
+        subtitle={!loading && !error ? `${totalUsers} usuario(s) encontrados.` : 'Visualize e mantenha os acessos atualizados.'}
+      >
+        {error ? <div className="global-error">{error}</div> : null}
 
-            {editError && <div className="global-error">{editError}</div>}
-
-            <div className="form-group">
-              <label htmlFor="edit-role">Função</label>
-              <select
-                id="edit-role"
-                value={editForm.role}
-                onChange={(event) => setEditForm((current) => ({ ...current, role: event.target.value as UserRole }))}
-              >
-                <option value="ADMIN">Administrador</option>
-                <option value="CORRETOR">Corretor</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="edit-telefone">Telefone</label>
-              <input
-                id="edit-telefone"
-                type="text"
-                inputMode="numeric"
-                maxLength={15}
-                placeholder="(11) 99999-9999"
-                value={editForm.telefone}
-                onChange={(event) =>
-                  setEditForm((current) => ({
-                    ...current,
-                    telefone: formatPhone(event.target.value),
-                  }))
-                }
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="edit-ativo">Status</label>
-              <select
-                id="edit-ativo"
-                value={String(editForm.ativo)}
-                onChange={(event) =>
-                  setEditForm((current) => ({
-                    ...current,
-                    ativo: event.target.value === 'true',
-                  }))
-                }
-              >
-                <option value="true">Ativo</option>
-                <option value="false">Inativo</option>
-              </select>
-            </div>
-
-            <div className="row">
-              <button type="button" className="secondary" onClick={closeEditModal} disabled={isSaving}>
-                Cancelar
-              </button>
-              <button type="button" className="primary modal-save-button" onClick={onSaveEdit} disabled={isSaving}>
-                {isSaving ? 'Salvando...' : 'Salvar'}
-              </button>
-            </div>
+        {loading ? (
+          <div className="table-skeleton">
+            <Skeleton height={48} />
+            <Skeleton height={48} />
+            <Skeleton height={48} />
+            <Skeleton height={48} />
           </div>
-        </div>
-      )}
-    </section>
+        ) : null}
+
+        {!loading && !error && users.length === 0 ? (
+          <EmptyState
+            title="Nenhum usuario encontrado"
+            description={`Cadastre a equipe para distribuir a operação comercial dentro do ${APP_NAME}.`}
+            action={
+              showActions ? (
+                <Link to="/app/usuarios/cadastrar">
+                  <Button size="sm">Novo usuario</Button>
+                </Link>
+              ) : null
+            }
+          />
+        ) : null}
+
+        {!loading && !error && users.length > 0 ? (
+          <TableContainer>
+            <Table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Telefone</th>
+                  <th>Funcao</th>
+                  <th>Status</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.nome}</td>
+                    <td>{item.email}</td>
+                    <td>{item.telefone}</td>
+                    <td>{roleLabel[item.role] ?? item.role}</td>
+                    <td>
+                      <Badge variant={item.ativo ? 'success' : 'danger'}>{item.ativo ? 'Ativo' : 'Inativo'}</Badge>
+                    </td>
+                    <td className="users-actions-cell">
+                      {showActions ? (
+                        <Button variant="secondary" size="sm" onClick={() => openEditModal(item)}>
+                          Editar
+                        </Button>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableContainer>
+        ) : null}
+      </Card>
+
+      {editingUser ? (
+        <Modal
+          title="Editar usuario"
+          subtitle={editingUser.nome}
+          onClose={closeEditModal}
+          actions={
+            <>
+              <Button variant="secondary" onClick={closeEditModal} disabled={isSaving}>
+                Cancelar
+              </Button>
+              <Button onClick={onSaveEdit} disabled={isSaving}>
+                {isSaving ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </>
+          }
+        >
+          {editError ? <div className="global-error">{editError}</div> : null}
+
+          <div className="modal-form-grid">
+            <Select
+              id="edit-role"
+              label="Funcao"
+              value={editForm.role}
+              onChange={(event) => setEditForm((current) => ({ ...current, role: event.target.value as UserRole }))}
+            >
+              <option value="ADMIN">Administrador</option>
+              <option value="CORRETOR">Corretor</option>
+            </Select>
+
+            <Input
+              id="edit-telefone"
+              label="Telefone"
+              inputMode="numeric"
+              maxLength={15}
+              placeholder="(11) 99999-9999"
+              value={editForm.telefone}
+              onChange={(event) =>
+                setEditForm((current) => ({
+                  ...current,
+                  telefone: formatPhone(event.target.value),
+                }))
+              }
+            />
+
+            <Select
+              id="edit-ativo"
+              label="Status"
+              value={String(editForm.ativo)}
+              onChange={(event) =>
+                setEditForm((current) => ({
+                  ...current,
+                  ativo: event.target.value === 'true',
+                }))
+              }
+            >
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </Select>
+          </div>
+        </Modal>
+      ) : null}
+    </main>
   );
 }

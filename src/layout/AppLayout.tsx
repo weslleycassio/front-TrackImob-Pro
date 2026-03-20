@@ -1,13 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { getMinhaImobiliariaRequest } from '../api/imobiliariasService';
-
 import { changePasswordRequest, updateLoggedUserRequest } from '../api/usersService';
-import type { AlterarSenhaPayload, UpdateMeRequest } from '../api/types';
+import type { AlterarSenhaPayload, ImobiliariaSummary, UpdateMeRequest } from '../api/types';
 import { saveStoredUser } from '../auth/storage';
 import { useAuth } from '../auth/useAuth';
-import { HamburgerMenuDrawer } from '../components/HamburgerMenuDrawer';
-import { Topbar } from '../components/Topbar';
+import { APP_NAME, setDocumentTitle } from '../config/app';
+import { AppFooter } from '../components/AppFooter';
+import { AppHeader } from '../components/AppHeader';
+import { AppSidebar } from '../components/AppSidebar';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
+import { Toast } from '../components/ui/Toast';
 
 const onlyDigits = (value: string) => value.replace(/\D/g, '');
 
@@ -22,8 +27,11 @@ const initialPasswordForm: AlterarSenhaPayload = {
 export function AppLayout() {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
-  const [imobiliariaNome, setImobiliariaNome] = useState(user?.imobiliariaNome ?? 'TrackImob Pro');
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [imobiliaria, setImobiliaria] = useState<ImobiliariaSummary | null>(
+    user?.imobiliariaNome ? { nome: user.imobiliariaNome, logoUrl: null } : null,
+  );
+  const [isLoadingImobiliaria, setIsLoadingImobiliaria] = useState(!user?.imobiliariaNome);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalMode, setProfileModalMode] = useState<ProfileModalMode>('perfil');
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
@@ -38,33 +46,63 @@ export function AppLayout() {
   const [passwordForm, setPasswordForm] = useState<AlterarSenhaPayload>(initialPasswordForm);
 
   useEffect(() => {
+    setDocumentTitle();
+  }, []);
+
+  useEffect(() => {
+    if (!profileSuccess) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setProfileSuccess(null), 4000);
+    return () => window.clearTimeout(timeout);
+  }, [profileSuccess]);
+
+  useEffect(() => {
     if (!user) {
       navigate('/login', { replace: true });
       return;
     }
 
     if (user.imobiliariaNome) {
-      setImobiliariaNome(user.imobiliariaNome);
-      return;
+      setImobiliaria((current) => ({
+        nome: user.imobiliariaNome ?? current?.nome ?? APP_NAME,
+        logoUrl: current?.logoUrl ?? null,
+      }));
+      setIsLoadingImobiliaria(false);
+    } else {
+      setImobiliaria(null);
+      setIsLoadingImobiliaria(true);
     }
 
-    const loadImobiliariaNome = async () => {
+    let isMounted = true;
+
+    const loadImobiliaria = async () => {
       try {
         const data = await getMinhaImobiliariaRequest(user.imobiliariaId);
-        setImobiliariaNome(data.nome);
+        if (!isMounted) {
+          return;
+        }
+
+        setImobiliaria(data);
+        setIsLoadingImobiliaria(false);
         saveStoredUser({ ...user, imobiliariaNome: data.nome });
       } catch {
-        setImobiliariaNome(user.imobiliariaNome ?? 'TrackImob Pro');
+        if (!isMounted) {
+          return;
+        }
+
+        setImobiliaria(user.imobiliariaNome ? { nome: user.imobiliariaNome, logoUrl: null } : null);
+        setIsLoadingImobiliaria(false);
       }
     };
 
-    loadImobiliariaNome();
-  }, [navigate, user]);
+    loadImobiliaria();
 
-  const userLabel = useMemo(() => {
-    if (!user) return 'TrackImob Pro';
-    return `${imobiliariaNome} - ${user.nome} - ${user.role}`;
-  }, [imobiliariaNome, user]);
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate, user]);
 
   const handleLogout = () => {
     logout();
@@ -99,22 +137,6 @@ export function AppLayout() {
     setPasswordForm(initialPasswordForm);
   };
 
-  const goToPasswordMode = () => {
-    setProfileError(null);
-    setPasswordForm(initialPasswordForm);
-    setProfileModalMode('senha');
-  };
-
-  const goToProfileMode = () => {
-    if (isUpdatingPassword) {
-      return;
-    }
-
-    setProfileError(null);
-    setPasswordForm(initialPasswordForm);
-    setProfileModalMode('perfil');
-  };
-
   const onSaveProfile = async () => {
     if (!user) {
       return;
@@ -141,7 +163,6 @@ export function AppLayout() {
 
     setIsUpdatingUser(true);
     setProfileError(null);
-    setProfileSuccess(null);
 
     try {
       const refreshedUser = await updateLoggedUserRequest(payload);
@@ -151,14 +172,18 @@ export function AppLayout() {
       };
 
       updateUser(nextUser);
+
       if (nextUser.imobiliariaNome) {
-        setImobiliariaNome(nextUser.imobiliariaNome);
+        setImobiliaria((current) => ({
+          nome: nextUser.imobiliariaNome ?? current?.nome ?? APP_NAME,
+          logoUrl: current?.logoUrl ?? null,
+        }));
       }
 
-      setProfileSuccess('Dados atualizados com sucesso.');
+      setProfileSuccess('Perfil atualizado com sucesso no sistema.');
       setIsProfileModalOpen(false);
     } catch {
-      setProfileError('Não foi possível atualizar seus dados.');
+      setProfileError('Nao foi possivel atualizar seus dados.');
     } finally {
       setIsUpdatingUser(false);
     }
@@ -177,19 +202,19 @@ export function AppLayout() {
     }
 
     if (payload.novaSenha !== payload.confirmarNovaSenha) {
-      setProfileError('A nova senha e a confirmação da senha não conferem.');
+      setProfileError('A nova senha e a confirmacao nao conferem.');
       return;
     }
 
     setIsUpdatingPassword(true);
     setProfileError(null);
-    setProfileSuccess(null);
 
     try {
       await changePasswordRequest(payload);
       setProfileSuccess('Senha alterada com sucesso.');
       setPasswordForm(initialPasswordForm);
       setProfileModalMode('perfil');
+      setIsProfileModalOpen(false);
     } catch (error: unknown) {
       const apiMessage =
         typeof error === 'object' &&
@@ -206,158 +231,132 @@ export function AppLayout() {
   };
 
   return (
-    <main className="app-shell-layout">
-      <Topbar userLabel={userLabel} onMenuToggle={() => setIsDrawerOpen(true)} onProfileClick={openProfileModal} />
-
-      <HamburgerMenuDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+    <main className="saas-shell">
+      <AppSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
         onLogout={handleLogout}
+        companyName={imobiliaria?.nome}
+        companyLogoUrl={imobiliaria?.logoUrl}
+        isCompanyLoading={isLoadingImobiliaria}
       />
 
-      <section className="app-content-with-topbar">
-        {profileSuccess && <div className="global-success">{profileSuccess}</div>}
-        <Outlet />
-      </section>
+      <div className="saas-shell__content">
+        <AppHeader
+          companyName={imobiliaria?.nome ?? APP_NAME}
+          userName={user?.nome ?? 'Usuario'}
+          userRole={user?.role ?? 'Equipe'}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          onProfileClick={openProfileModal}
+        />
 
-      {isProfileModalOpen && (
-        <div className="modal-backdrop" role="presentation">
-          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title">
-            <h2 id="profile-edit-title">{profileModalMode === 'perfil' ? 'Editar meu perfil' : 'Alterar senha'}</h2>
+        <section className="saas-shell__main">
+          {profileSuccess ? (
+            <div className="toast-stack">
+              <Toast title="Atualização concluída" description={profileSuccess} variant="success" onClose={() => setProfileSuccess(null)} />
+            </div>
+          ) : null}
+          <Outlet />
+          <AppFooter />
+        </section>
+      </div>
 
-            {profileError && <div className="global-error">{profileError}</div>}
-
-            {profileModalMode === 'perfil' ? (
+      {isProfileModalOpen ? (
+        <Modal
+          title={profileModalMode === 'perfil' ? 'Editar perfil' : 'Alterar senha'}
+          actionsClassName="profile-modal__actions"
+          subtitle={
+            profileModalMode === 'perfil'
+              ? 'Mantenha seus dados atualizados para uma operacao mais confiavel.'
+              : 'Use uma senha forte para proteger sua conta.'
+          }
+          onClose={closeProfileModal}
+          actions={
+            profileModalMode === 'perfil' ? (
               <>
-                <div className="form-group">
-                  <label htmlFor="profile-nome">Nome</label>
-                  <input
-                    id="profile-nome"
-                    type="text"
-                    value={profileForm.nome}
-                    onChange={(event) =>
-                      setProfileForm((current) => ({
-                        ...current,
-                        nome: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="profile-email">E-mail</label>
-                  <input
-                    id="profile-email"
-                    type="email"
-                    value={profileForm.email}
-                    onChange={(event) =>
-                      setProfileForm((current) => ({
-                        ...current,
-                        email: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="profile-telefone">Telefone</label>
-                  <input
-                    id="profile-telefone"
-                    type="text"
-                    inputMode="numeric"
-                    value={profileForm.telefone}
-                    onChange={(event) =>
-                      setProfileForm((current) => ({
-                        ...current,
-                        telefone: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <button type="button" className="profile-password-link" onClick={goToPasswordMode} disabled={isUpdatingUser}>
+                <Button variant="ghost" className="profile-modal__button" onClick={() => setProfileModalMode('senha')} disabled={isUpdatingUser}>
                   Alterar senha
-                </button>
-
-                <div className="row">
-                  <button type="button" className="secondary" onClick={closeProfileModal} disabled={isUpdatingUser}>
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="primary modal-save-button"
-                    onClick={onSaveProfile}
-                    disabled={isUpdatingUser}
-                  >
-                    {isUpdatingUser ? 'Salvando...' : 'Salvar'}
-                  </button>
-                </div>
+                </Button>
+                <Button variant="secondary" className="profile-modal__button" onClick={closeProfileModal} disabled={isUpdatingUser}>
+                  Cancelar
+                </Button>
+                <Button className="profile-modal__button" onClick={onSaveProfile} disabled={isUpdatingUser}>
+                  {isUpdatingUser ? 'Salvando...' : 'Salvar perfil'}
+                </Button>
               </>
             ) : (
               <>
-                <div className="form-group">
-                  <label htmlFor="profile-senha-atual">Senha atual</label>
-                  <input
-                    id="profile-senha-atual"
-                    type="password"
-                    value={passwordForm.senhaAtual}
-                    onChange={(event) =>
-                      setPasswordForm((current) => ({
-                        ...current,
-                        senhaAtual: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="profile-nova-senha">Nova senha</label>
-                  <input
-                    id="profile-nova-senha"
-                    type="password"
-                    value={passwordForm.novaSenha}
-                    onChange={(event) =>
-                      setPasswordForm((current) => ({
-                        ...current,
-                        novaSenha: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="profile-confirmar-nova-senha">Confirmar nova senha</label>
-                  <input
-                    id="profile-confirmar-nova-senha"
-                    type="password"
-                    value={passwordForm.confirmarNovaSenha}
-                    onChange={(event) =>
-                      setPasswordForm((current) => ({
-                        ...current,
-                        confirmarNovaSenha: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="row">
-                  <button type="button" className="secondary" onClick={goToProfileMode} disabled={isUpdatingPassword}>
-                    Voltar
-                  </button>
-                  <button
-                    type="button"
-                    className="primary modal-save-button"
-                    onClick={onSavePassword}
-                    disabled={isUpdatingPassword}
-                  >
-                    {isUpdatingPassword ? 'Salvando...' : 'Salvar nova senha'}
-                  </button>
-                </div>
+                <Button
+                  variant="secondary"
+                  className="profile-modal__button"
+                  onClick={() => setProfileModalMode('perfil')}
+                  disabled={isUpdatingPassword}
+                >
+                  Voltar
+                </Button>
+                <Button className="profile-modal__button" onClick={onSavePassword} disabled={isUpdatingPassword}>
+                  {isUpdatingPassword ? 'Salvando...' : 'Salvar nova senha'}
+                </Button>
               </>
-            )}
-          </div>
-        </div>
-      )}
+            )
+          }
+        >
+          {profileError ? <div className="global-error">{profileError}</div> : null}
+
+          {profileModalMode === 'perfil' ? (
+            <div className="modal-form-grid">
+              <Input
+                id="profile-nome"
+                label="Nome"
+                value={profileForm.nome}
+                onChange={(event) => setProfileForm((current) => ({ ...current, nome: event.target.value }))}
+              />
+              <Input
+                id="profile-email"
+                label="E-mail"
+                type="email"
+                value={profileForm.email}
+                onChange={(event) => setProfileForm((current) => ({ ...current, email: event.target.value }))}
+              />
+              <Input
+                id="profile-telefone"
+                label="Telefone"
+                value={profileForm.telefone}
+                onChange={(event) => setProfileForm((current) => ({ ...current, telefone: event.target.value }))}
+              />
+            </div>
+          ) : (
+            <div className="modal-form-grid">
+              <Input
+                id="profile-senha-atual"
+                label="Senha atual"
+                type="password"
+                value={passwordForm.senhaAtual}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, senhaAtual: event.target.value }))}
+              />
+              <Input
+                id="profile-nova-senha"
+                label="Nova senha"
+                type="password"
+                value={passwordForm.novaSenha}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, novaSenha: event.target.value }))}
+              />
+              <Input
+                id="profile-confirmar-nova-senha"
+                label="Confirmar nova senha"
+                type="password"
+                value={passwordForm.confirmarNovaSenha}
+                onChange={(event) =>
+                  setPasswordForm((current) => ({
+                    ...current,
+                    confirmarNovaSenha: event.target.value,
+                  }))
+                }
+              />
+            </div>
+          )}
+        </Modal>
+      ) : null}
     </main>
   );
 }

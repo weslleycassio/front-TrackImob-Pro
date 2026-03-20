@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import type { Resolver } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -21,6 +21,11 @@ import {
   updateImovel,
   uploadImovelImages,
 } from '../../services/imoveis';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Modal } from '../../components/ui/Modal';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Spinner } from '../../components/ui/Spinner';
 import { toFriendlyError } from '../../utils/errorMessages';
 import { canEditImovel } from '../../utils/imovelPermissions';
 
@@ -133,6 +138,20 @@ type PreviewFile = {
   file: File;
   previewUrl: string;
 };
+
+type FormSectionProps = {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+};
+
+function FormSection({ title, subtitle, children }: FormSectionProps) {
+  return (
+    <Card className="form-section-card" title={title} subtitle={subtitle}>
+      {children}
+    </Card>
+  );
+}
 
 type ImovelFormMode = 'create' | 'edit';
 
@@ -733,16 +752,20 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   if (isEditMode && isLoadingInitialData) {
     return (
       <main className="content-page">
-        <section className="feature-card form-card imovel-form-card">
-          <div className="row page-header-row">
-            <h1>{pageTitle}</h1>
-            <button className="secondary" type="button" onClick={() => navigate(backPath)}>
+        <PageHeader
+          title={pageTitle}
+          subtitle="Preparando os dados do imovel para edicao."
+          actions={
+            <Button variant="secondary" onClick={() => navigate(backPath)}>
               {backLabel}
-            </button>
+            </Button>
+          }
+        />
+        <Card className="imovel-form-card">
+          <div className="loading-state-card">
+            <Spinner label="Carregando os dados do imóvel..." />
           </div>
-
-          <p>Carregando dados do imovel...</p>
-        </section>
+        </Card>
       </main>
     );
   }
@@ -750,33 +773,38 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   if (isEditMode && pageError) {
     return (
       <main className="content-page">
-        <section className="feature-card form-card imovel-form-card">
-          <div className="row page-header-row">
-            <h1>{pageTitle}</h1>
-            <button className="secondary" type="button" onClick={() => navigate(backPath)}>
+        <PageHeader
+          title={pageTitle}
+          subtitle="Nao foi possivel carregar o formulario solicitado."
+          actions={
+            <Button variant="secondary" onClick={() => navigate(backPath)}>
               {backLabel}
-            </button>
-          </div>
-
+            </Button>
+          }
+        />
+        <Card className="imovel-form-card">
           <div className="global-error">{pageError}</div>
-        </section>
+        </Card>
       </main>
     );
   }
 
   return (
     <main className="content-page">
-      <section className="feature-card form-card imovel-form-card">
-        <div className="row page-header-row">
-          <h1>{pageTitle}</h1>
-          <button className="secondary" type="button" onClick={() => navigate(backPath)}>
+      <PageHeader
+        title={pageTitle}
+        subtitle={isCreateMode ? 'Cadastre um novo imovel com visual mais claro e organizado.' : 'Atualize o imovel mantendo o padrao visual do sistema.'}
+        actions={
+          <Button variant="secondary" onClick={() => navigate(backPath)}>
             {backLabel}
-          </button>
-        </div>
+          </Button>
+        }
+      />
 
-        {globalError && <div className="global-error">{globalError}</div>}
+      {globalError ? <div className="global-error">{globalError}</div> : null}
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="imovel-form-shell">
+        <FormSection title="Dados principais" subtitle="Defina as informacoes centrais do imovel.">
           <div className="form-group">
             <label htmlFor="titulo">Titulo*</label>
             <input id="titulo" type="text" placeholder="Ex: Apartamento 2 dormitorios com sacada" {...register('titulo')} />
@@ -805,7 +833,9 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
               {errors.finalidade && <span className="error-text">{errors.finalidade.message}</span>}
             </div>
           </div>
+        </FormSection>
 
+        <FormSection title="Endereco" subtitle="Localize o imovel com dados de regiao e bairro.">
           <div className="form-grid">
             <div className="form-group">
               <label htmlFor="estado">Estado*</label>
@@ -847,7 +877,9 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
             <input id="bairro" type="text" {...register('bairro')} />
             {errors.bairro && <span className="error-text">{errors.bairro.message}</span>}
           </div>
+        </FormSection>
 
+        <FormSection title="Valores" subtitle="Organize preco, status e responsabilidade comercial.">
           <div className="form-grid">
             <div className="form-group">
               <label htmlFor="preco">Preco*</label>
@@ -875,40 +907,6 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
           </div>
 
           <div className="form-grid">
-            <div className="form-group">
-              <label htmlFor="quartos">Quartos</label>
-              <input id="quartos" type="number" min="0" step="1" {...register('quartos')} />
-              {errors.quartos && <span className="error-text">{errors.quartos.message}</span>}
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="metragem">Metragem</label>
-              <input id="metragem" type="number" min="0" step="0.01" {...register('metragem')} />
-              {errors.metragem && <span className="error-text">{errors.metragem.message}</span>}
-            </div>
-          </div>
-
-          <div className="form-grid">
-            <div className="form-group">
-              <label htmlFor="vagasGaragem">Vagas de garagem</label>
-              <input id="vagasGaragem" type="number" min="0" step="1" {...register('vagasGaragem')} />
-              {errors.vagasGaragem && <span className="error-text">{errors.vagasGaragem.message}</span>}
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="banheiros">Banheiros</label>
-              <input id="banheiros" type="number" min="0" step="1" {...register('banheiros')} />
-              {errors.banheiros && <span className="error-text">{errors.banheiros.message}</span>}
-            </div>
-          </div>
-
-          <div className="form-grid">
-            <div className="form-group">
-              <label htmlFor="suites">Suites</label>
-              <input id="suites" type="number" min="0" step="1" {...register('suites')} />
-              {errors.suites && <span className="error-text">{errors.suites.message}</span>}
-            </div>
-
             {isCreateMode && (
               <div className="form-group">
                 <label htmlFor="corretorCaptadorId">Corretor captador*</label>
@@ -952,56 +950,53 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
               </div>
             )}
           </div>
+        </FormSection>
 
-          <div className="form-group">
-            <label htmlFor="descricao">Descricao*</label>
-            <textarea id="descricao" rows={4} {...register('descricao')} />
-            {errors.descricao && <span className="error-text">{errors.descricao.message}</span>}
+        <FormSection title="Caracteristicas" subtitle="Detalhe os principais atributos fisicos do imovel.">
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="quartos">Quartos</label>
+              <input id="quartos" type="number" min="0" step="1" {...register('quartos')} />
+              {errors.quartos && <span className="error-text">{errors.quartos.message}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="metragem">Metragem</label>
+              <input id="metragem" type="number" min="0" step="0.01" {...register('metragem')} />
+              {errors.metragem && <span className="error-text">{errors.metragem.message}</span>}
+            </div>
           </div>
 
-          {isCreateMode && (
-            <>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label htmlFor="nomeProprietario">Nome do proprietario</label>
-                  <input id="nomeProprietario" type="text" {...register('nomeProprietario')} />
-                  {errors.nomeProprietario && <span className="error-text">{errors.nomeProprietario.message}</span>}
-                </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="vagasGaragem">Vagas de garagem</label>
+              <input id="vagasGaragem" type="number" min="0" step="1" {...register('vagasGaragem')} />
+              {errors.vagasGaragem && <span className="error-text">{errors.vagasGaragem.message}</span>}
+            </div>
 
-                <div className="form-group">
-                  <label htmlFor="telefoneProprietario">Telefone</label>
-                  <input
-                    id="telefoneProprietario"
-                    type="tel"
-                    inputMode="tel"
-                    placeholder="(11) 99999-9999"
-                    {...register('telefoneProprietario', {
-                      onChange: (event) => {
-                        setValue('telefoneProprietario', formatPhone(event.target.value), {
-                          shouldDirty: true,
-                        });
-                      },
-                    })}
-                  />
-                  {errors.telefoneProprietario && <span className="error-text">{errors.telefoneProprietario.message}</span>}
-                </div>
-              </div>
+            <div className="form-group">
+              <label htmlFor="banheiros">Banheiros</label>
+              <input id="banheiros" type="number" min="0" step="1" {...register('banheiros')} />
+              {errors.banheiros && <span className="error-text">{errors.banheiros.message}</span>}
+            </div>
+          </div>
 
-              <div className="form-group">
-                <label htmlFor="enderecoCaptacao">Endereco da captacao</label>
-                <textarea id="enderecoCaptacao" rows={3} {...register('enderecoCaptacao')} />
-                {errors.enderecoCaptacao && <span className="error-text">{errors.enderecoCaptacao.message}</span>}
-              </div>
-            </>
-          )}
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="suites">Suites</label>
+              <input id="suites" type="number" min="0" step="1" {...register('suites')} />
+              {errors.suites && <span className="error-text">{errors.suites.message}</span>}
+            </div>
+          </div>
+        </FormSection>
 
+        <FormSection title="Midia" subtitle="Adicione links externos e organize a galeria do imovel.">
           <div className="form-grid">
             <div className="form-group">
               <label htmlFor="linkExternoFotos">Link externo de fotos</label>
               <input id="linkExternoFotos" type="url" placeholder="https://..." {...register('linkExternoFotos')} />
               {errors.linkExternoFotos && <span className="error-text">{errors.linkExternoFotos.message}</span>}
             </div>
-
             <div className="form-group">
               <label htmlFor="linkExternoVideos">Link externo de videos</label>
               <input id="linkExternoVideos" type="url" placeholder="https://..." {...register('linkExternoVideos')} />
@@ -1051,23 +1046,71 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
               )}
             </>
           )}
+        </FormSection>
 
-          <button className="primary" type="submit" disabled={isBusy}>
+        <FormSection title="Observacoes" subtitle="Registre descricao comercial e dados complementares.">
+          <div className="form-group">
+            <label htmlFor="descricao">Descricao*</label>
+            <textarea id="descricao" rows={4} {...register('descricao')} />
+            {errors.descricao && <span className="error-text">{errors.descricao.message}</span>}
+          </div>
+
+          {isCreateMode && (
+            <>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="nomeProprietario">Nome do proprietario</label>
+                  <input id="nomeProprietario" type="text" {...register('nomeProprietario')} />
+                  {errors.nomeProprietario && <span className="error-text">{errors.nomeProprietario.message}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="telefoneProprietario">Telefone</label>
+                  <input
+                    id="telefoneProprietario"
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="(11) 99999-9999"
+                    {...register('telefoneProprietario', {
+                      onChange: (event) => {
+                        setValue('telefoneProprietario', formatPhone(event.target.value), {
+                          shouldDirty: true,
+                        });
+                      },
+                    })}
+                  />
+                  {errors.telefoneProprietario && <span className="error-text">{errors.telefoneProprietario.message}</span>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="enderecoCaptacao">Endereco da captacao</label>
+                <textarea id="enderecoCaptacao" rows={3} {...register('enderecoCaptacao')} />
+                {errors.enderecoCaptacao && <span className="error-text">{errors.enderecoCaptacao.message}</span>}
+              </div>
+            </>
+          )}
+        </FormSection>
+
+        <div className="form-submit-bar">
+          <Button type="submit" disabled={isBusy}>
             {isBusy ? 'Salvando...' : isCreateMode ? 'Salvar' : 'Salvar alteracoes'}
-          </button>
-        </form>
-      </section>
+          </Button>
+        </div>
+      </form>
 
       {isSuccessModalOpen && (
-        <div className="modal-backdrop" role="presentation">
-          <div className="success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title">
-            <h2 id="success-title">{isCreateMode ? 'Imovel cadastrado com sucesso' : 'Imovel atualizado com sucesso'}</h2>
-            <p>{successMessage}</p>
-            <button className="primary" type="button" onClick={handleSuccessClose}>
+        <Modal
+          title={isCreateMode ? 'Imovel cadastrado com sucesso' : 'Imovel atualizado com sucesso'}
+          subtitle={successMessage}
+          actions={
+            <Button type="button" onClick={handleSuccessClose}>
               OK
-            </button>
-          </div>
-        </div>
+            </Button>
+          }
+        >
+          <p className="saas-copy">O sistema concluiu o fluxo e ja pode seguir para a proxima etapa.</p>
+        </Modal>
       )}
     </main>
   );

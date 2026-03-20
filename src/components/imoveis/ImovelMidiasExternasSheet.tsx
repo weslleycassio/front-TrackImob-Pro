@@ -170,7 +170,7 @@ export function ImovelMidiasExternasSheet({
           </button>
         </div>
 
-        {!hasAnyMedia && <p className="right-side-sheet-empty">Nenhuma midia externa cadastrada.</p>}
+        {!hasAnyMedia && <p className="right-side-sheet-empty">Nenhuma mídia externa cadastrada até o momento.</p>}
 
         {fotosLink && (
           <section className="right-side-sheet-section">
@@ -195,7 +195,7 @@ export function ImovelMidiasExternasSheet({
             <h3>Dados da captacao</h3>
 
             {isLoadingDadosCaptacao ? (
-              <p className="right-side-sheet-empty">Carregando dados da captacao...</p>
+              <p className="right-side-sheet-empty">Carregando dados da captação...</p>
             ) : dadosCaptacaoError ? (
               <p className="right-side-sheet-empty">{dadosCaptacaoError}</p>
             ) : (

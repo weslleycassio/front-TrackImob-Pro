@@ -3,10 +3,18 @@ import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { User } from '../../api/types';
 import { getBrokerAndAdminUsersRequest } from '../../api/usersService';
+import { useAuth } from '../../auth/useAuth';
 import { InativarImovelModal } from '../../components/imoveis/InativarImovelModal';
 import { ImoveisFiltro } from '../../components/imoveis/ImoveisFiltro';
 import { ImoveisPaginacao } from '../../components/imoveis/ImoveisPaginacao';
 import { ImoveisTabela } from '../../components/imoveis/ImoveisTabela';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { Toast } from '../../components/ui/Toast';
+import { APP_NAME } from '../../config/app';
 import {
   ativarImovel,
   getImoveis,
@@ -15,10 +23,9 @@ import {
   type Imovel,
   type InativarImovelPayload,
 } from '../../services/imoveisService';
-import { useAuth } from '../../auth/useAuth';
-import { toFriendlyError } from '../../utils/errorMessages';
 import { canEditImovel } from '../../utils/imovelPermissions';
 import { canActivateImovel } from '../../utils/imovelStatus';
+import { toFriendlyError } from '../../utils/errorMessages';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -75,8 +82,8 @@ export function ConsultaImoveisPage() {
       const response = await getImoveis(filters);
       setImoveis(response.data ?? []);
       setTotal(response.total);
-    } catch {
-      setError('Não foi possível carregar os imóveis');
+    } catch (apiError) {
+      setError(toFriendlyError(apiError, 'Nao foi possivel carregar os imoveis.'));
       setImoveis([]);
       setTotal(undefined);
     } finally {
@@ -92,7 +99,10 @@ export function ConsultaImoveisPage() {
     const nextParams = new URLSearchParams();
 
     Object.entries(nextFilters).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === '') return;
+      if (value === undefined || value === null || value === '') {
+        return;
+      }
+
       nextParams.set(key, String(value));
     });
 
@@ -123,7 +133,9 @@ export function ConsultaImoveisPage() {
   };
 
   const handleChangePage = (nextPage: number) => {
-    if (nextPage < 1) return;
+    if (nextPage < 1) {
+      return;
+    }
 
     updateParams({
       ...filters,
@@ -158,7 +170,7 @@ export function ConsultaImoveisPage() {
     } catch (apiError) {
       setUsuariosFechamento([]);
       setUsuariosFechamentoError(
-        toFriendlyError(apiError, 'Não foi possível carregar os usuários para o fechamento do imóvel.'),
+        toFriendlyError(apiError, 'Nao foi possivel carregar os usuarios para o fechamento do imovel.'),
       );
     } finally {
       setIsLoadingUsuariosFechamento(false);
@@ -173,14 +185,6 @@ export function ConsultaImoveisPage() {
     if (!usuariosFechamento.length && !isLoadingUsuariosFechamento) {
       loadUsuariosFechamento();
     }
-  };
-
-  const handleVisualizarImovel = (imovel: Imovel) => {
-    navigate(`/imoveis/${imovel.id}`);
-  };
-
-  const handleEditarImovel = (imovel: Imovel) => {
-    navigate(`/imoveis/${imovel.id}/editar`);
   };
 
   const handleAtivarImovel = async (imovel: Imovel) => {
@@ -219,7 +223,7 @@ export function ConsultaImoveisPage() {
 
     try {
       await inativarImovel(selectedImovel.id, payload);
-      setSuccessMessage('Imóvel inativado com sucesso.');
+      setSuccessMessage('Imovel inativado com sucesso.');
       setSelectedImovel(null);
 
       const currentPage = filters.page || DEFAULT_PAGE;
@@ -236,9 +240,9 @@ export function ConsultaImoveisPage() {
       }
     } catch (apiError) {
       if (axios.isAxiosError(apiError) && apiError.response?.status === 403) {
-        setInactivationError('Você não tem permissão para inativar este imóvel.');
+        setInactivationError('Voce nao tem permissao para inativar este imovel.');
       } else {
-        setInactivationError(toFriendlyError(apiError, 'Não foi possível inativar o imóvel. Tente novamente.'));
+        setInactivationError(toFriendlyError(apiError, 'Nao foi possivel inativar o imovel. Tente novamente.'));
       }
     } finally {
       setIsInactivating(false);
@@ -247,38 +251,54 @@ export function ConsultaImoveisPage() {
 
   return (
     <main className="content-page">
-      <section className="card imoveis-header-card">
-        <div className="row">
-          <h1>Consulta de Imóveis</h1>
-          <button type="button" className="primary imoveis-create-btn" onClick={() => navigate('/imoveis/cadastrar')}>
-            Cadastrar Imóvel
-          </button>
+      <PageHeader
+        title="Imoveis"
+        subtitle="Gerencie a carteira com filtros mais claros, cards organizados e acoes padronizadas."
+        actions={<Button onClick={() => navigate('/imoveis/cadastrar')}>Cadastrar imovel</Button>}
+      />
+
+      {successMessage ? (
+        <div className="toast-stack">
+          <Toast
+            title="Carteira atualizada"
+            description={successMessage}
+            variant="success"
+            onClose={() => setSuccessMessage(null)}
+          />
         </div>
-      </section>
+      ) : null}
 
       <ImoveisFiltro initialFilters={filters} onFilter={handleFilter} onClear={handleClear} />
 
-      <section className="card imoveis-list-card">
-        {successMessage && <div className="global-success">{successMessage}</div>}
-
-        {isLoading && (
-          <div className="imoveis-skeleton-grid" aria-live="polite" aria-label="Carregando imóveis">
+      <Card
+        className="imoveis-list-card"
+        title="Carteira cadastrada"
+        subtitle={typeof total === 'number' ? `${total} registro(s) encontrados.` : 'Acompanhe os imoveis encontrados abaixo.'}
+      >
+        {isLoading ? (
+          <div className="imoveis-skeleton-grid" aria-live="polite" aria-label="Carregando carteira de imoveis">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="imoveis-skeleton-card">
-                <div className="imoveis-skeleton-image" />
-                <div className="imoveis-skeleton-line" />
-                <div className="imoveis-skeleton-line short" />
-                <div className="imoveis-skeleton-line" />
-              </div>
+              <Card key={index} className="imoveis-skeleton-card">
+                <Skeleton className="imoveis-skeleton-image" />
+                <Skeleton height={18} className="imoveis-skeleton-line" />
+                <Skeleton height={12} className="imoveis-skeleton-line short" />
+                <Skeleton height={12} className="imoveis-skeleton-line" />
+              </Card>
             ))}
           </div>
-        )}
+        ) : null}
 
-        {!isLoading && error && <div className="global-error">{error}</div>}
+        {!isLoading && error ? <div className="global-error">{error}</div> : null}
 
-        {!isLoading && !error && imoveis.length === 0 && <p className="info-text">Nenhum imóvel encontrado</p>}
+        {!isLoading && !error && imoveis.length === 0 ? (
+          <EmptyState
+            title="Nenhum imovel encontrado"
+            description={`Ajuste os filtros ou cadastre o primeiro imóvel no ${APP_NAME} para iniciar sua carteira.`}
+            action={<Button onClick={() => navigate('/imoveis/cadastrar')}>Novo imovel</Button>}
+          />
+        ) : null}
 
-        {!isLoading && !error && imoveis.length > 0 && (
+        {!isLoading && !error && imoveis.length > 0 ? (
           <>
             <ImoveisTabela
               imoveis={imoveis}
@@ -288,8 +308,8 @@ export function ConsultaImoveisPage() {
               canActivate={(imovel) => canInativarImovel(imovel) && canActivateImovel(imovel)}
               canInativar={(imovel) => canInativarImovel(imovel) && String(imovel.status).toUpperCase() !== 'INATIVO'}
               activatingImovelId={activatingImovelId}
-              onVisualizar={handleVisualizarImovel}
-              onEditar={handleEditarImovel}
+              onVisualizar={(imovel) => navigate(`/imoveis/${imovel.id}`)}
+              onEditar={(imovel) => navigate(`/imoveis/${imovel.id}/editar`)}
               onAtivar={handleAtivarImovel}
               onInativar={openInactivationModal}
             />
@@ -300,8 +320,8 @@ export function ConsultaImoveisPage() {
               onChangePage={handleChangePage}
             />
           </>
-        )}
-      </section>
+        ) : null}
+      </Card>
 
       <InativarImovelModal
         imovel={selectedImovel}

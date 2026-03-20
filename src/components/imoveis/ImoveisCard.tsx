@@ -1,3 +1,5 @@
+import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
 import type { Imovel } from '../../services/imoveisService';
 import { ImovelCarousel } from './ImovelCarousel';
 
@@ -15,6 +17,8 @@ type ImoveisCardProps = {
   onInativar: (imovel: Imovel) => void;
 };
 
+const getStatusVariant = (status?: string) => (String(status).toUpperCase() === 'ATIVO' ? 'success' : 'danger');
+
 export function ImoveisCard({
   imovel,
   formatCurrency,
@@ -29,49 +33,58 @@ export function ImoveisCard({
   onInativar,
 }: ImoveisCardProps) {
   return (
-    <article className="imovel-card">
+    <article className="imovel-card saas-card">
       <ImovelCarousel imagens={imovel.imagens ?? []} titulo={imovel.titulo} />
 
-      <div className="imovel-card-content">
-        <h3>{imovel.titulo}</h3>
-        <p className="imovel-card-meta">
-          {imovel.tipo} - {imovel.finalidade}
-        </p>
+      <div className="imovel-card-content saas-card__body">
+        <div className="imovel-card__header">
+          <div>
+            <h3>{imovel.titulo}</h3>
+            <p className="imovel-card-meta">
+              {imovel.tipo} • {imovel.finalidade}
+            </p>
+          </div>
+          <Badge variant={getStatusVariant(imovel.status)}>{String(imovel.status).toUpperCase()}</Badge>
+        </div>
 
-        <p>
-          <strong>Local:</strong> {imovel.bairro} - {imovel.cidade}
-        </p>
-        <p>
-          <strong>Preco:</strong> {formatCurrency(imovel.preco)}
-        </p>
-        <p>
-          <strong>Status:</strong> {imovel.status}
-        </p>
-        <p>
-          <strong>Cadastro:</strong> {formatDate(imovel.createdAt)}
-        </p>
+        <div className="imovel-card__facts">
+          <div>
+            <span>Local</span>
+            <strong>
+              {imovel.bairro} - {imovel.cidade}
+            </strong>
+          </div>
+          <div>
+            <span>Preco</span>
+            <strong>{formatCurrency(imovel.preco)}</strong>
+          </div>
+          <div>
+            <span>Cadastro</span>
+            <strong>{formatDate(imovel.createdAt)}</strong>
+          </div>
+        </div>
 
-        {imovel.descricao && <p className="imovel-card-description">{imovel.descricao}</p>}
+        {imovel.descricao ? <p className="imovel-card-description">{imovel.descricao}</p> : null}
 
         <div className="imoveis-actions">
-          <button type="button" className="secondary" onClick={() => onVisualizar(imovel)}>
+          <Button variant="secondary" size="sm" onClick={() => onVisualizar(imovel)}>
             Visualizar
-          </button>
-          {canEdit && (
-            <button type="button" className="secondary" onClick={() => onEditar(imovel)}>
+          </Button>
+          {canEdit ? (
+            <Button variant="ghost" size="sm" onClick={() => onEditar(imovel)}>
               Editar
-            </button>
-          )}
-          {canActivate && (
-            <button type="button" className="secondary" onClick={() => onAtivar(imovel)} disabled={isActivating}>
+            </Button>
+          ) : null}
+          {canActivate ? (
+            <Button variant="secondary" size="sm" onClick={() => onAtivar(imovel)} disabled={isActivating}>
               {isActivating ? 'Ativando...' : 'Ativar'}
-            </button>
-          )}
-          {canInativar && (
-            <button type="button" className="secondary danger" onClick={() => onInativar(imovel)}>
+            </Button>
+          ) : null}
+          {canInativar ? (
+            <Button variant="danger" size="sm" onClick={() => onInativar(imovel)}>
               Inativar
-            </button>
-          )}
+            </Button>
+          ) : null}
         </div>
       </div>
     </article>

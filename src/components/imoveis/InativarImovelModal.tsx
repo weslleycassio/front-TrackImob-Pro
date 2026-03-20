@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { User } from '../../api/types';
+import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
+import { Select } from '../ui/Select';
 import {
   motivoInativacaoImovelOptions,
   type Imovel,
@@ -62,12 +65,12 @@ export function InativarImovelModal({
 
   const handleConfirm = async () => {
     if (!motivo) {
-      setValidationError('Selecione o motivo da inativação.');
+      setValidationError('Selecione o motivo da inativacao.');
       return;
     }
 
     if (exigeResponsavelFechamento && !responsavelFechamentoId) {
-      setValidationError(`Selecione quem ${motivo === 'ALUGADO' ? 'alugou' : 'vendeu'} o imóvel.`);
+      setValidationError(`Selecione quem ${motivo === 'ALUGADO' ? 'alugou' : 'vendeu'} o imovel.`);
       return;
     }
 
@@ -81,94 +84,84 @@ export function InativarImovelModal({
   };
 
   return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="inativar-imovel-title">
-        <h2 id="inativar-imovel-title">Inativar imóvel</h2>
-        <p className="info-text">
-          Tem certeza que deseja inativar este imóvel? Informe o motivo da inativação para concluir o processo.
-        </p>
-        <p>
-          <strong>Imóvel:</strong> {imovel.titulo}
-        </p>
-
-        {(validationError || error) && <div className="global-error">{validationError ?? error}</div>}
-
-        <div className="form-group">
-          <label htmlFor="inativar-imovel-motivo">Motivo</label>
-          <select
-            id="inativar-imovel-motivo"
-            value={motivo}
-            onChange={(event) => {
-              setMotivo(event.target.value as MotivoInativacaoImovel | '');
-              if (validationError) {
-                setValidationError(null);
-              }
-            }}
-            disabled={isSubmitting}
-          >
-            <option value="">Selecione um motivo</option>
-            {motivoInativacaoImovelOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {exigeResponsavelFechamento && (
-          <div className="form-group">
-            <label htmlFor="inativar-imovel-responsavel-fechamento">{responsavelLabel}</label>
-            <select
-              id="inativar-imovel-responsavel-fechamento"
-              value={responsavelFechamentoId}
-              onChange={(event) => {
-                setResponsavelFechamentoId(event.target.value);
-                if (validationError) {
-                  setValidationError(null);
-                }
-              }}
-              disabled={isSubmitting || isLoadingUsuariosFechamento}
-            >
-              <option value="">
-                {isLoadingUsuariosFechamento ? 'Carregando usuários...' : `Selecione ${responsavelLabel.toLowerCase()}`}
-              </option>
-              {usuariosFechamento.map((usuario) => (
-                <option key={usuario.id} value={String(usuario.id)}>
-                  {usuario.nome}
-                </option>
-              ))}
-            </select>
-            {usuariosFechamentoError && <span className="error-text">{usuariosFechamentoError}</span>}
-          </div>
-        )}
-
-        <div className="form-group">
-          <label htmlFor="inativar-imovel-descricao">Descrição</label>
-          <textarea
-            id="inativar-imovel-descricao"
-            className="imoveis-modal-description"
-            rows={4}
-            placeholder="Adicione um contexto complementar, se necessário."
-            value={descricao}
-            onChange={(event) => setDescricao(event.target.value)}
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <div className="imoveis-modal-actions">
-          <button type="button" className="secondary" onClick={onCancel} disabled={isSubmitting}>
+    <Modal
+      title="Confirmar inativacao"
+      subtitle={`Imovel: ${imovel.titulo}`}
+      onClose={isSubmitting ? undefined : onCancel}
+      actions={
+        <>
+          <Button variant="secondary" onClick={onCancel} disabled={isSubmitting}>
             Cancelar
-          </button>
-          <button
-            type="button"
-            className="primary modal-save-button"
-            onClick={handleConfirm}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Inativando...' : 'Confirmar inativação'}
-          </button>
-        </div>
+          </Button>
+          <Button variant="danger" onClick={handleConfirm} disabled={isSubmitting}>
+            {isSubmitting ? 'Inativando...' : 'Confirmar'}
+          </Button>
+        </>
+      }
+    >
+      <p className="saas-copy">Informe o motivo da inativacao para concluir o processo com rastreabilidade.</p>
+
+      {validationError || error ? <div className="global-error">{validationError ?? error}</div> : null}
+
+      <Select
+        id="inativar-imovel-motivo"
+        label="Motivo"
+        value={motivo}
+        onChange={(event) => {
+          setMotivo(event.target.value as MotivoInativacaoImovel | '');
+          if (validationError) {
+            setValidationError(null);
+          }
+        }}
+        disabled={isSubmitting}
+      >
+        <option value="">Selecione um motivo</option>
+        {motivoInativacaoImovelOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+
+      {exigeResponsavelFechamento ? (
+        <Select
+          id="inativar-imovel-responsavel-fechamento"
+          label={responsavelLabel}
+          value={responsavelFechamentoId}
+          hint={usuariosFechamentoError ?? undefined}
+          onChange={(event) => {
+            setResponsavelFechamentoId(event.target.value);
+            if (validationError) {
+              setValidationError(null);
+            }
+          }}
+          disabled={isSubmitting || isLoadingUsuariosFechamento}
+        >
+          <option value="">
+            {isLoadingUsuariosFechamento ? 'Carregando usuarios...' : `Selecione ${responsavelLabel.toLowerCase()}`}
+          </option>
+          {usuariosFechamento.map((usuario) => (
+            <option key={usuario.id} value={String(usuario.id)}>
+              {usuario.nome}
+            </option>
+          ))}
+        </Select>
+      ) : null}
+
+      <div className="ui-field">
+        <label className="ui-label" htmlFor="inativar-imovel-descricao">
+          Descricao
+        </label>
+        <textarea
+          id="inativar-imovel-descricao"
+          className="ui-control imoveis-modal-description"
+          rows={4}
+          placeholder="Adicione um contexto complementar, se necessario."
+          value={descricao}
+          onChange={(event) => setDescricao(event.target.value)}
+          disabled={isSubmitting}
+        />
       </div>
-    </div>
+    </Modal>
   );
 }
