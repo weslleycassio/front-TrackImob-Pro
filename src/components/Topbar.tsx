@@ -1,17 +1,17 @@
+import { CircleUserRound, Menu } from 'lucide-react';
+
 type TopbarProps = {
   userLabel: string;
   onMenuToggle: () => void;
-
   onProfileClick: () => void;
 };
 
 export function Topbar({ userLabel, onMenuToggle, onProfileClick }: TopbarProps) {
-
   return (
     <header className="topbar-fixed">
       <div className="topbar-left-content">
         <button type="button" className="menu-toggle-btn" onClick={onMenuToggle} aria-label="Abrir menu">
-          ☰
+          <Menu size={20} aria-hidden="true" />
         </button>
         <p className="topbar-user-label">{userLabel}</p>
       </div>
@@ -19,16 +19,11 @@ export function Topbar({ userLabel, onMenuToggle, onProfileClick }: TopbarProps)
       <button
         type="button"
         className="topbar-profile-btn"
-
-        aria-label="Editar perfil do usuário"
-        title="Editar perfil do usuário"
+        aria-label="Editar perfil do usuario"
+        title="Editar perfil do usuario"
         onClick={onProfileClick}
-
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true" className="topbar-profile-icon">
-          <path d="M20 6v5h-5" />
-          <path d="M20 11a8 8 0 1 0 2.2 5.5" />
-        </svg>
+        <CircleUserRound aria-hidden="true" className="topbar-profile-icon" />
       </button>
     </header>
   );

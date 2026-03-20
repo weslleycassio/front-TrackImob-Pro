@@ -2,6 +2,12 @@ export type UserRole = 'ADMIN' | 'CORRETOR';
 
 export type EntityId = string | number;
 
+export type ImobiliariaSummary = {
+  id?: EntityId;
+  nome: string;
+  logoUrl?: string | null;
+};
+
 export type User = {
   id: EntityId;
   nome: string;

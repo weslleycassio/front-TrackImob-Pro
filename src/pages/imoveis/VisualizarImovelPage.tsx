@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/useAuth';
 import { ImovelMidiasExternasSheet } from '../../components/imoveis/ImovelMidiasExternasSheet';
 import { InativarImovelModal } from '../../components/imoveis/InativarImovelModal';
 import { ImovelCarousel } from '../../components/imoveis/ImovelCarousel';
+import { Spinner } from '../../components/ui/Spinner';
 import {
   ativarImovel,
   getImovelById,
@@ -225,7 +226,9 @@ export function VisualizarImovelPage() {
     return (
       <main className="content-page">
         <section className="card imovel-detail-card">
-          <p>Carregando imovel...</p>
+          <div className="loading-state-card">
+            <Spinner label="Carregando as informacoes do imovel..." />
+          </div>
         </section>
       </main>
     );
