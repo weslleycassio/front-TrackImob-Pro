@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ImagemImovel } from '../../services/imoveisService';
-import { getImovelImagemPrincipal, orderImagensByCapa, resolveImageSrc } from '../../utils/imovelImages';
+import { getImovelImagemPrincipal, IMOVEL_PLACEHOLDER_IMAGE, orderImagensByCapa } from '../../utils/imovelImages';
 
 type ImovelCarouselProps = {
   imagens: ImagemImovel[];
@@ -9,14 +9,9 @@ type ImovelCarouselProps = {
 
 export function ImovelCarousel({ imagens, titulo }: ImovelCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [failedIds, setFailedIds] = useState<Record<string, boolean>>({});
 
   const imagensOrdenadas = useMemo(() => orderImagensByCapa(imagens), [imagens]);
-
-  const imagensValidas = useMemo(
-    () => imagensOrdenadas.filter((imagem) => imagem.url && !failedIds[imagem.id]),
-    [imagensOrdenadas, failedIds],
-  );
+  const imagensValidas = useMemo(() => imagensOrdenadas.filter((imagem) => imagem.url), [imagensOrdenadas]);
 
   const total = imagensValidas.length;
   const hasNavigation = total > 1;
@@ -39,12 +34,8 @@ export function ImovelCarousel({ imagens, titulo }: ImovelCarouselProps) {
     setCurrentIndex((previous) => (previous === total - 1 ? 0 : previous + 1));
   };
 
-  const handleImageError = (id: string) => {
-    setFailedIds((previous) => ({ ...previous, [id]: true }));
-  };
-
   return (
-    <div className="imovel-carousel" aria-label={`Fotos do imóvel ${titulo}`}>
+    <div className="imovel-carousel" aria-label={`Fotos do imovel ${titulo}`}>
       {!currentImage && (
         <img src={fallbackImage} alt={`${titulo} - sem imagem`} className="imovel-carousel-image" loading="lazy" />
       )}
@@ -52,11 +43,14 @@ export function ImovelCarousel({ imagens, titulo }: ImovelCarouselProps) {
       {currentImage && (
         <>
           <img
-            src={resolveImageSrc(currentImage.url)}
+            src={currentImage.url}
             alt={`${titulo} - foto ${currentIndex + 1}`}
             className="imovel-carousel-image"
             loading="lazy"
-            onError={() => handleImageError(currentImage.id)}
+            onError={(event) => {
+              event.currentTarget.src = IMOVEL_PLACEHOLDER_IMAGE;
+              event.currentTarget.onerror = null;
+            }}
           />
 
           {hasNavigation && (
@@ -73,7 +67,7 @@ export function ImovelCarousel({ imagens, titulo }: ImovelCarouselProps) {
                 type="button"
                 className="imovel-carousel-nav imovel-carousel-nav-next"
                 onClick={goToNext}
-                aria-label="Próxima imagem"
+                aria-label="Proxima imagem"
               >
                 ›
               </button>
