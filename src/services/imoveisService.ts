@@ -15,6 +15,7 @@ export {
   type FinalidadeImovel,
   type GetImoveisFilters,
   type GetImoveisResponse,
+  type Imagem,
   type ImagemImovel,
   type InativarImovelPayload,
   type Imovel,
