@@ -22,13 +22,16 @@ export type InativarImovelPayload = {
   responsavelFechamentoId?: string | number;
 };
 
-export type ImagemImovel = {
+export interface Imagem {
   id: string;
   url: string;
+}
+
+export interface ImagemImovel extends Imagem {
   key?: string;
   capa: boolean;
   ordem: number;
-};
+}
 
 export type UsuarioResumo = {
   id: string | number;
@@ -257,6 +260,13 @@ function normalizeImagens(rawImovel: RawImovel): ImagemImovel[] {
   if (Array.isArray(rawImovel.imagens) && rawImovel.imagens.length > 0) {
     return rawImovel.imagens
       .filter((imagem): imagem is ImagemImovel => Boolean(imagem?.id && imagem?.url))
+      .map((imagem) => ({
+        id: String(imagem.id),
+        url: imagem.url,
+        key: imagem.key,
+        capa: Boolean(imagem.capa),
+        ordem: Number(imagem.ordem ?? 0),
+      }))
       .sort((a, b) => {
         if (a.capa !== b.capa) {
           return a.capa ? -1 : 1;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ImagemImovel } from '../../services/imoveisService';
-import { getImovelImagemPrincipal, IMOVEL_PLACEHOLDER_IMAGE, orderImagensByCapa } from '../../utils/imovelImages';
+import { IMOVEL_PLACEHOLDER_IMAGE, orderImagensByCapa } from '../../utils/imovelImages';
 
 type ImovelCarouselProps = {
   imagens: ImagemImovel[];
@@ -16,7 +16,6 @@ export function ImovelCarousel({ imagens, titulo }: ImovelCarouselProps) {
   const total = imagensValidas.length;
   const hasNavigation = total > 1;
   const currentImage = imagensValidas[currentIndex] ?? null;
-  const fallbackImage = getImovelImagemPrincipal(imagensOrdenadas);
 
   useEffect(() => {
     if (currentIndex > total - 1) {
@@ -37,7 +36,7 @@ export function ImovelCarousel({ imagens, titulo }: ImovelCarouselProps) {
   return (
     <div className="imovel-carousel" aria-label={`Fotos do imovel ${titulo}`}>
       {!currentImage && (
-        <img src={fallbackImage} alt={`${titulo} - sem imagem`} className="imovel-carousel-image" loading="lazy" />
+        <img src={IMOVEL_PLACEHOLDER_IMAGE} alt={`${titulo} - sem imagem`} className="imovel-carousel-image" loading="lazy" />
       )}
 
       {currentImage && (
