@@ -13,12 +13,24 @@ type ImoveisFiltroProps = {
 
 const tipos = ['Apartamento', 'Casa', 'Sobrado', 'Assobradado', 'Terreno', 'Comercial', 'Planta', 'Outro'];
 const FINALIDADE_LOCACAO = 'Loca\u00e7\u00e3o';
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
+
+const normalizeTextFilter = (value?: string) => value?.trim().replace(/\s+/g, ' ') ?? '';
+const formatPriceValue = (value?: number) => (typeof value === 'number' && Number.isFinite(value) ? currencyFormatter.format(value) : '');
+const toDigitsOnly = (value: string) => value.replace(/\D/g, '');
 
 export function ImoveisFiltro({ initialFilters, onFilter, onClear }: ImoveisFiltroProps) {
   const [filters, setFilters] = useState<GetImoveisFilters>(initialFilters);
+  const [precoMinInput, setPrecoMinInput] = useState(() => formatPriceValue(initialFilters.precoMin));
+  const [precoMaxInput, setPrecoMaxInput] = useState(() => formatPriceValue(initialFilters.precoMax));
 
   useEffect(() => {
     setFilters(initialFilters);
+    setPrecoMinInput(formatPriceValue(initialFilters.precoMin));
+    setPrecoMaxInput(formatPriceValue(initialFilters.precoMax));
   }, [initialFilters]);
 
   const updateField = (field: keyof GetImoveisFilters, value: string | number | undefined) => {
@@ -28,9 +40,25 @@ export function ImoveisFiltro({ initialFilters, onFilter, onClear }: ImoveisFilt
     }));
   };
 
+  const updatePriceField = (
+    field: 'precoMin' | 'precoMax',
+    value: string,
+    setInput: (nextValue: string) => void,
+  ) => {
+    const digits = toDigitsOnly(value);
+    setInput(digits);
+    updateField(field, digits ? Number(digits) : undefined);
+  };
+
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    onFilter(filters);
+    const normalizedFilters = {
+      ...filters,
+      busca: normalizeTextFilter(filters.busca),
+    };
+
+    setFilters(normalizedFilters);
+    onFilter(normalizedFilters);
   };
 
   return (
@@ -44,7 +72,7 @@ export function ImoveisFiltro({ initialFilters, onFilter, onClear }: ImoveisFilt
           <Input
             id="busca"
             label="Busca por texto"
-            placeholder="Titulo, bairro ou cidade"
+            placeholder="Titulo, bairro, cidade ou descricao"
             value={filters.busca ?? ''}
             onChange={(event) => updateField('busca', event.target.value)}
           />
@@ -82,19 +110,25 @@ export function ImoveisFiltro({ initialFilters, onFilter, onClear }: ImoveisFilt
         <Input
           id="precoMin"
           label="Preco minimo"
-          type="number"
-          min={0}
-          value={filters.precoMin ?? ''}
-          onChange={(event) => updateField('precoMin', event.target.value ? Number(event.target.value) : undefined)}
+          type="text"
+          inputMode="numeric"
+          placeholder="R$ 0,00"
+          value={precoMinInput}
+          onFocus={() => setPrecoMinInput(filters.precoMin !== undefined ? String(Math.trunc(filters.precoMin)) : '')}
+          onBlur={() => setPrecoMinInput(formatPriceValue(filters.precoMin))}
+          onChange={(event) => updatePriceField('precoMin', event.target.value, setPrecoMinInput)}
         />
 
         <Input
           id="precoMax"
           label="Preco maximo"
-          type="number"
-          min={0}
-          value={filters.precoMax ?? ''}
-          onChange={(event) => updateField('precoMax', event.target.value ? Number(event.target.value) : undefined)}
+          type="text"
+          inputMode="numeric"
+          placeholder="R$ 0,00"
+          value={precoMaxInput}
+          onFocus={() => setPrecoMaxInput(filters.precoMax !== undefined ? String(Math.trunc(filters.precoMax)) : '')}
+          onBlur={() => setPrecoMaxInput(formatPriceValue(filters.precoMax))}
+          onChange={(event) => updatePriceField('precoMax', event.target.value, setPrecoMaxInput)}
         />
 
         <div className="saas-form-actions">

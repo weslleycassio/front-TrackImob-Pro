@@ -40,6 +40,8 @@ const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
   timeStyle: 'short',
 });
 
+const normalizeTextFilter = (value?: string) => value?.trim().replace(/\s+/g, ' ') ?? '';
+
 function mapSearchParamsToFilters(searchParams: URLSearchParams): GetImoveisFilters {
   return {
     busca: searchParams.get('busca') ?? '',
@@ -103,7 +105,13 @@ export function ConsultaImoveisPage() {
         return;
       }
 
-      nextParams.set(key, String(value));
+      const normalizedValue = key === 'busca' && typeof value === 'string' ? normalizeTextFilter(value) : value;
+
+      if (normalizedValue === '') {
+        return;
+      }
+
+      nextParams.set(key, String(normalizedValue));
     });
 
     if (!nextParams.has('page')) {
