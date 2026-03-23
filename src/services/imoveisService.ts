@@ -2,6 +2,7 @@ export {
   ativarImovel,
   createImovel,
   createImovelWithImages,
+  deleteImovelImage,
   getDadosCaptacaoImovel,
   extractImovelId,
   getImoveis,
