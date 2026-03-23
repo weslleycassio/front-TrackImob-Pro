@@ -2175,6 +2175,14 @@ label,
   cursor: pointer;
 }
 
+.imovel-fotos-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
 .imovel-card {
   overflow: hidden;
 }

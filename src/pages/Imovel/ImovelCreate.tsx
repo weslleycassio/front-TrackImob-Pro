@@ -11,10 +11,12 @@ import { getBrokerAndAdminUsersRequest, getLoggedUserRequest } from '../../api/u
 import { useAuth } from '../../auth/useAuth';
 import {
   createImovel,
+  deleteImovelImage,
   extractImovelId,
   getImovelById,
-  type Imovel,
   type FinalidadeImovel,
+  type ImagemImovel,
+  type Imovel,
   type StatusImovel,
   type TipoImovel,
   type UpdateImovelPayload,
@@ -26,7 +28,9 @@ import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Spinner } from '../../components/ui/Spinner';
+import { Toast } from '../../components/ui/Toast';
 import { toFriendlyError } from '../../utils/errorMessages';
+import { IMOVEL_PLACEHOLDER_IMAGE } from '../../utils/imovelImages';
 import { canEditImovel } from '../../utils/imovelPermissions';
 
 const tiposDeImovel = ['Apartamento', 'Casa', 'Sobrado', 'Assobradado', 'Terreno', 'Comercial', 'Planta', 'Outro'] as const;
@@ -137,6 +141,12 @@ type ImovelFormValues = z.infer<typeof imovelCreateSchema>;
 type PreviewFile = {
   file: File;
   previewUrl: string;
+};
+
+type FeedbackToastState = {
+  title: string;
+  description?: string;
+  variant: 'success' | 'error' | 'info';
 };
 
 type FormSectionProps = {
@@ -301,12 +311,16 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   const { user } = useAuth();
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [currentImages, setCurrentImages] = useState<ImagemImovel[]>([]);
   const [selectedImages, setSelectedImages] = useState<PreviewFile[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [precoInput, setPrecoInput] = useState('R$ 0,00');
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('Imovel cadastrado com sucesso.');
+  const [photoFeedback, setPhotoFeedback] = useState<FeedbackToastState | null>(null);
   const [corretoresCaptadores, setCorretoresCaptadores] = useState<User[]>([]);
   const [isLoadingCorretoresCaptadores, setIsLoadingCorretoresCaptadores] = useState(false);
   const [corretoresCaptadoresError, setCorretoresCaptadoresError] = useState<string | null>(null);
@@ -322,6 +336,8 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   const isCorretor = user?.role === 'CORRETOR';
   const defaultCorretorCaptadorId = user?.role === 'CORRETOR' ? String(user.id) : '';
   const preserveCidadeOnStateLoadRef = useRef(false);
+  const editImagesInputRef = useRef<HTMLInputElement>(null);
+  const selectedImagesRef = useRef<PreviewFile[]>([]);
 
   const formResolver = useMemo(
     () => zodResolver(isCreateMode ? imovelCreateSchema : imovelEditSchema) as Resolver<ImovelFormValues>,
@@ -341,18 +357,23 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
     defaultValues: getDefaultFormValues(defaultCorretorCaptadorId),
   });
 
-  const isBusy = useMemo(() => isSubmitting || uploadProgress > 0, [isSubmitting, uploadProgress]);
+  const isBusy = useMemo(() => isSubmitting || (isCreateMode && uploadProgress > 0), [isCreateMode, isSubmitting, uploadProgress]);
+  const isPhotoActionDisabled = isSubmitting || isUploadingImages || deletingImageId !== null;
   const selectedEstado = watch('estado');
   const selectedCorretorCaptadorId = watch('corretorCaptadorId');
   const pageTitle = isCreateMode ? 'Cadastrar Imovel' : 'Editar Imovel';
   const backPath = isEditMode ? (id ? `/imoveis/${id}` : '/imoveis') : '/app';
   const backLabel = isEditMode ? 'Voltar para visualizacao' : 'Voltar';
 
+  useEffect(() => {
+    selectedImagesRef.current = selectedImages;
+  }, [selectedImages]);
+
   useEffect(
     () => () => {
-      selectedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+      selectedImagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl));
     },
-    [selectedImages],
+    [],
   );
 
   useEffect(() => {
@@ -526,6 +547,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
         }
 
         preserveCidadeOnStateLoadRef.current = true;
+        setCurrentImages(response.imagens ?? []);
         reset(mapImovelToFormValues(response, defaultCorretorCaptadorId));
         setPrecoInput(currencyFormatter.format(response.preco ?? 0));
       } catch (error) {
@@ -583,6 +605,20 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
     return () => window.clearTimeout(timeout);
   }, [id, isCreateMode, isSuccessModalOpen, navigate]);
 
+  const clearSelectedImages = () => {
+    setSelectedImages((previous) => {
+      previous.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+      return [];
+    });
+    setUploadProgress(0);
+    setImageError(null);
+  };
+
+  const refreshCurrentImages = async (imovelId: string | number) => {
+    const response = await getImovelById(imovelId);
+    setCurrentImages(response.imagens ?? []);
+  };
+
   const handleImageSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
@@ -607,7 +643,8 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
     setSelectedImages((previous) => {
       const existingKeys = new Set(previous.map((image) => `${image.file.name}-${image.file.lastModified}-${image.file.size}`));
       const newFiles = files.filter((file) => !existingKeys.has(`${file.name}-${file.lastModified}-${file.size}`));
-      const availableSlots = Math.max(0, MAX_IMAGES - previous.length);
+      const currentImageCount = isEditMode ? currentImages.length : 0;
+      const availableSlots = Math.max(0, MAX_IMAGES - currentImageCount - previous.length);
       const filesToAdd = newFiles.slice(0, availableSlots);
 
       if (filesToAdd.length < newFiles.length) {
@@ -627,6 +664,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
 
     setUploadProgress(0);
     setGlobalError(null);
+    setPhotoFeedback(null);
   };
 
   const removeImage = (fileName: string, fileModified: number) => {
@@ -641,12 +679,91 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   };
 
   const clearForm = () => {
-    selectedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
-    setSelectedImages([]);
-    setUploadProgress(0);
-    setImageError(null);
+    clearSelectedImages();
     setPrecoInput('R$ 0,00');
     reset(getDefaultFormValues(defaultCorretorCaptadorId));
+  };
+
+  const handleUploadSelectedImages = async () => {
+    if (!id) {
+      setPhotoFeedback({
+        title: 'Imovel nao encontrado',
+        description: 'Nao foi possivel identificar o imovel para enviar novas fotos.',
+        variant: 'error',
+      });
+      return;
+    }
+
+    const selectedImageFiles = selectedImages
+      .map((image) => image.file)
+      .filter((file) => file instanceof File && file.size > 0);
+
+    if (!selectedImageFiles.length) {
+      setImageError('Selecione ao menos uma imagem para enviar.');
+      return;
+    }
+
+    setGlobalError(null);
+    setImageError(null);
+    setPhotoFeedback(null);
+    setIsUploadingImages(true);
+
+    try {
+      setUploadProgress(1);
+      await uploadImovelImages(id, selectedImageFiles, (progress) => setUploadProgress(progress));
+      await refreshCurrentImages(id);
+      clearSelectedImages();
+      setPhotoFeedback({
+        title: 'Fotos adicionadas',
+        description: 'As novas fotos foram vinculadas ao imovel com sucesso.',
+        variant: 'success',
+      });
+    } catch (error) {
+      setUploadProgress(0);
+      setPhotoFeedback({
+        title: 'Falha ao adicionar fotos',
+        description: toFriendlyError(error, 'Nao foi possivel enviar as novas fotos.'),
+        variant: 'error',
+      });
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const handleDeleteCurrentImage = async (imagem: ImagemImovel) => {
+    if (!id) {
+      setPhotoFeedback({
+        title: 'Imovel nao encontrado',
+        description: 'Nao foi possivel identificar o imovel para excluir a foto.',
+        variant: 'error',
+      });
+      return;
+    }
+
+    if (!window.confirm('Deseja excluir esta foto do imovel?')) {
+      return;
+    }
+
+    setPhotoFeedback(null);
+    setDeletingImageId(imagem.id);
+
+    try {
+      await deleteImovelImage(id, imagem.id);
+      setCurrentImages((previous) => previous.filter((currentImage) => currentImage.id !== imagem.id));
+      setPhotoFeedback({
+        title: 'Foto excluida',
+        description: 'A imagem foi removida do imovel.',
+        variant: 'success',
+      });
+    } catch (error) {
+      setPhotoFeedback({
+        title: 'Falha ao excluir foto',
+        description: toFriendlyError(error, 'Nao foi possivel excluir a foto selecionada.'),
+        variant: 'error',
+      });
+    } finally {
+      setDeletingImageId(null);
+    }
   };
 
   const onSubmit = async (data: ImovelFormValues) => {
@@ -802,6 +919,16 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
       />
 
       {globalError ? <div className="global-error">{globalError}</div> : null}
+      {photoFeedback ? (
+        <div className="toast-stack">
+          <Toast
+            title={photoFeedback.title}
+            description={photoFeedback.description}
+            variant={photoFeedback.variant}
+            onClose={() => setPhotoFeedback(null)}
+          />
+        </div>
+      ) : null}
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="imovel-form-shell">
         <FormSection title="Dados principais" subtitle="Defina as informacoes centrais do imovel.">
@@ -1048,6 +1175,105 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
           )}
         </FormSection>
 
+        {isEditMode && (
+          <FormSection
+            title="Fotos atuais"
+            subtitle="Gerencie as fotos vinculadas ao imovel sem alterar o restante do formulario."
+          >
+            <div className="form-group">
+              <label>Galeria atual</label>
+              <div className="image-preview-grid">
+                {currentImages.length > 0 ? (
+                  currentImages.map((imagem, index) => (
+                    <figure key={imagem.id} className="image-preview-card">
+                      <img
+                        src={imagem.url}
+                        alt={`Foto atual ${index + 1} do imovel`}
+                        onError={(event) => {
+                          event.currentTarget.src = IMOVEL_PLACEHOLDER_IMAGE;
+                          event.currentTarget.onerror = null;
+                        }}
+                      />
+                      <figcaption>{imagem.capa ? `Foto ${index + 1} - Capa` : `Foto ${index + 1}`}</figcaption>
+                      <button
+                        type="button"
+                        className="image-remove-btn"
+                        onClick={() => handleDeleteCurrentImage(imagem)}
+                        disabled={isPhotoActionDisabled}
+                      >
+                        {deletingImageId === imagem.id ? 'Excluindo...' : 'Excluir foto'}
+                      </button>
+                    </figure>
+                  ))
+                ) : (
+                  <figure className="image-preview-card">
+                    <img src={IMOVEL_PLACEHOLDER_IMAGE} alt="Sem fotos atuais" />
+                    <figcaption>Nenhuma foto vinculada ao imovel.</figcaption>
+                  </figure>
+                )}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="novasImagens">Adicionar novas fotos</label>
+              <input
+                ref={editImagesInputRef}
+                id="novasImagens"
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                multiple
+                onChange={handleImageSelection}
+                disabled={isPhotoActionDisabled}
+                hidden
+              />
+              <div className="imovel-fotos-actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => editImagesInputRef.current?.click()}
+                  disabled={isPhotoActionDisabled}
+                >
+                  Adicionar novas fotos
+                </Button>
+                {selectedImages.length > 0 ? (
+                  <Button type="button" onClick={handleUploadSelectedImages} disabled={isPhotoActionDisabled}>
+                    {isUploadingImages ? `Enviando fotos (${uploadProgress}%)` : 'Enviar fotos selecionadas'}
+                  </Button>
+                ) : null}
+              </div>
+              <small className="hint-text">
+                {currentImages.length} foto(s) atual(is). {selectedImages.length} nova(s) selecionada(s). Limite total de {MAX_IMAGES}{' '}
+                imagens.
+              </small>
+              {imageError && <span className="error-text">{imageError}</span>}
+            </div>
+
+            {selectedImages.length > 0 && (
+              <div className="form-group">
+                <label>Novas fotos selecionadas</label>
+                <div className="image-preview-grid">
+                  {selectedImages.map((image) => (
+                    <figure key={`${image.file.name}-${image.file.lastModified}`} className="image-preview-card">
+                      <img src={image.previewUrl} alt={image.file.name} />
+                      <figcaption>{image.file.name}</figcaption>
+                      <button
+                        type="button"
+                        className="image-remove-btn"
+                        onClick={() => removeImage(image.file.name, image.file.lastModified)}
+                        disabled={isPhotoActionDisabled}
+                      >
+                        Remover da fila
+                      </button>
+                    </figure>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isUploadingImages && uploadProgress > 0 ? <div className="hint-text">Upload de imagens: {uploadProgress}%</div> : null}
+          </FormSection>
+        )}
+
         <FormSection title="Observacoes" subtitle="Registre descricao comercial e dados complementares.">
           <div className="form-group">
             <label htmlFor="descricao">Descricao*</label>
@@ -1093,7 +1319,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
         </FormSection>
 
         <div className="form-submit-bar">
-          <Button type="submit" disabled={isBusy}>
+          <Button type="submit" disabled={isBusy || isUploadingImages || deletingImageId !== null}>
             {isBusy ? 'Salvando...' : isCreateMode ? 'Salvar' : 'Salvar alteracoes'}
           </Button>
         </div>

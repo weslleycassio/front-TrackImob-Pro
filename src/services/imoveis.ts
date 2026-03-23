@@ -528,6 +528,11 @@ export async function uploadImovelImages(
   return data;
 }
 
+export async function deleteImovelImage(imovelId: string | number, imagemId: string | number) {
+  const { data } = await apiClient.delete(imoveisEndpoints.deleteImage(imovelId, imagemId));
+  return data;
+}
+
 export function extractImovelId(response: CreateImovelResponse) {
   return response.id ?? response.imovel?.id ?? response.data?.id ?? response.data?.imovel?.id;
 }
