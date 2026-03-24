@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getUsersRequest } from '../../api/usersService';
 import { useAuth } from '../../auth/useAuth';
+import { useImobiliaria } from '../../hooks/useImobiliaria';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Spinner } from '../../components/ui/Spinner';
 import { APP_NAME } from '../../config/app';
 import { getImoveis } from '../../services/imoveisService';
 import { toFriendlyError } from '../../utils/errorMessages';
@@ -70,6 +72,7 @@ function getMetricChartBars(key: keyof DashboardMetrics, metrics: DashboardMetri
 
 export function AppHomePage() {
   const { user } = useAuth();
+  const { imobiliaria, loading: isLoadingImobiliaria } = useImobiliaria();
   const [metrics, setMetrics] = useState<DashboardMetrics>(initialMetrics);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,11 +106,23 @@ export function AppHomePage() {
     loadDashboard();
   }, []);
 
+  if (isLoadingImobiliaria && !imobiliaria) {
+    return (
+      <main className="content-page">
+        <section className="card imovel-detail-card">
+          <div className="loading-state-card">
+            <Spinner label="Carregando dados da imobiliaria..." />
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="content-page">
       <PageHeader
         title="Dashboard"
-        subtitle={`Bem-vindo de volta, ${user?.nome ?? 'equipe'}. Visualize a operação do ${APP_NAME} com mais clareza.`}
+        subtitle={`Bem-vindo de volta, ${user?.nome ?? 'equipe'}. Visualize a operacao da ${imobiliaria?.nome ?? APP_NAME} com mais clareza.`}
         actions={
           <div className="page-header__button-group">
             <Link to="/imoveis/cadastrar">
@@ -176,7 +191,7 @@ export function AppHomePage() {
           ) : metrics.totalImoveis === 0 ? (
             <EmptyState
               title="Sem dados suficientes"
-              description={`Assim que os primeiros imóveis forem cadastrados no ${APP_NAME}, os indicadores aparecerão aqui.`}
+              description={`Assim que os primeiros imoveis forem cadastrados no ${APP_NAME}, os indicadores aparecerao aqui.`}
               action={
                 <Link to="/imoveis/cadastrar">
                   <Button size="sm">Comecar agora</Button>
