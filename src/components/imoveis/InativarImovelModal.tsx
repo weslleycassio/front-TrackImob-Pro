@@ -5,13 +5,13 @@ import { Modal } from '../ui/Modal';
 import { Select } from '../ui/Select';
 import {
   motivoInativacaoImovelOptions,
-  type Imovel,
+  type InternalImovel,
   type InativarImovelPayload,
   type MotivoInativacaoImovel,
 } from '../../services/imoveisService';
 
 type InativarImovelModalProps = {
-  imovel: Imovel | null;
+  imovel: InternalImovel | null;
   usuariosFechamento: User[];
   isLoadingUsuariosFechamento: boolean;
   usuariosFechamentoError: string | null;

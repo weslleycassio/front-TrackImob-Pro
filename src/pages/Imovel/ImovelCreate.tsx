@@ -13,10 +13,10 @@ import {
   createImovel,
   deleteImovelImage,
   extractImovelId,
-  getImovelById,
+  getInternalImovelById,
   type FinalidadeImovel,
   type ImagemImovel,
-  type Imovel,
+  type InternalImovel,
   type StatusImovel,
   type TipoImovel,
   type UpdateImovelPayload,
@@ -29,9 +29,9 @@ import { Modal } from '../../components/ui/Modal';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Spinner } from '../../components/ui/Spinner';
 import { Toast } from '../../components/ui/Toast';
-import { toFriendlyError } from '../../utils/errorMessages';
+import { IMOVEL_ACTION_FORBIDDEN_MESSAGE, toFriendlyError, toImovelActionError } from '../../utils/errorMessages';
 import { IMOVEL_PLACEHOLDER_IMAGE } from '../../utils/imovelImages';
-import { canEditImovel } from '../../utils/imovelPermissions';
+import { canChangeImovelCaptador, canEditImovel, canManageImovelImages } from '../../utils/imovelPermissions';
 
 const tiposDeImovel = ['Apartamento', 'Casa', 'Sobrado', 'Assobradado', 'Terreno', 'Comercial', 'Planta', 'Outro'] as const;
 const FINALIDADE_LOCACAO = 'Loca\u00e7\u00e3o' as const;
@@ -244,7 +244,7 @@ function getStatusValue(status?: string | null): StatusImovel {
   return status === 'INATIVO' ? 'INATIVO' : 'ATIVO';
 }
 
-function mapImovelToFormValues(imovel: Imovel, defaultCorretorCaptadorId: string): ImovelFormValues {
+function mapImovelToFormValues(imovel: InternalImovel, defaultCorretorCaptadorId: string): ImovelFormValues {
   return {
     ...getDefaultFormValues(defaultCorretorCaptadorId),
     titulo: imovel.titulo ?? '',
@@ -282,9 +282,14 @@ function sanitizeOptionalPayloadString(value?: string | null): string | undefine
   return trimmedValue === '' ? undefined : trimmedValue;
 }
 
-function buildUpdatePayload(data: ImovelFormValues, precoInput: string): UpdateImovelPayload {
+function buildUpdatePayload(
+  data: ImovelFormValues,
+  precoInput: string,
+  canAlterarCorretorCaptador: boolean,
+): UpdateImovelPayload {
   const linkExternoFotos = sanitizeOptionalPayloadString(data.linkExternoFotos);
   const linkExternoVideos = sanitizeOptionalPayloadString(data.linkExternoVideos);
+  const corretorCaptadorId = sanitizeOptionalPayloadString(data.corretorCaptadorId);
 
   return {
     titulo: data.titulo,
@@ -295,6 +300,7 @@ function buildUpdatePayload(data: ImovelFormValues, precoInput: string): UpdateI
     cidade: data.cidade,
     preco: parseCurrencyToNumber(precoInput),
     descricao: data.descricao,
+    ...(canAlterarCorretorCaptador && corretorCaptadorId ? { corretorCaptadorId } : {}),
     quartos: data.quartos,
     metragem: data.metragem,
     vagasGaragem: data.vagasGaragem,
@@ -311,6 +317,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   const { user } = useAuth();
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [currentImovel, setCurrentImovel] = useState<InternalImovel | null>(null);
   const [currentImages, setCurrentImages] = useState<ImagemImovel[]>([]);
   const [selectedImages, setSelectedImages] = useState<PreviewFile[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -334,6 +341,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   const isCreateMode = mode === 'create';
   const isEditMode = mode === 'edit';
   const isCorretor = user?.role === 'CORRETOR';
+  const canAlterarCorretorCaptador = canChangeImovelCaptador(user);
   const defaultCorretorCaptadorId = user?.role === 'CORRETOR' ? String(user.id) : '';
   const preserveCidadeOnStateLoadRef = useRef(false);
   const editImagesInputRef = useRef<HTMLInputElement>(null);
@@ -359,6 +367,11 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
 
   const isBusy = useMemo(() => isSubmitting || (isCreateMode && uploadProgress > 0), [isCreateMode, isSubmitting, uploadProgress]);
   const isPhotoActionDisabled = isSubmitting || isUploadingImages || deletingImageId !== null;
+  const canGerenciarFotos = useMemo(
+    () => (isCreateMode ? true : canManageImovelImages(user, currentImovel)),
+    [currentImovel, isCreateMode, user],
+  );
+  const shouldShowCorretorCaptadorField = isCreateMode || canAlterarCorretorCaptador;
   const selectedEstado = watch('estado');
   const selectedCorretorCaptadorId = watch('corretorCaptadorId');
   const pageTitle = isCreateMode ? 'Cadastrar Imovel' : 'Editar Imovel';
@@ -396,7 +409,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   }, []);
 
   useEffect(() => {
-    if (!isCreateMode) {
+    if (!isCreateMode && !canAlterarCorretorCaptador) {
       setCorretoresCaptadores([]);
       setCorretoresCaptadoresError(null);
       return;
@@ -407,7 +420,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
       setCorretoresCaptadoresError(null);
 
       try {
-        if (isCorretor) {
+        if (isCorretor && isCreateMode) {
           const loggedUser = await getLoggedUserRequest();
           setCorretoresCaptadores([loggedUser]);
           setValue('corretorCaptadorId', String(loggedUser.id), {
@@ -438,7 +451,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
     };
 
     loadCorretoresCaptadores();
-  }, [isCorretor, isCreateMode, setValue, user]);
+  }, [canAlterarCorretorCaptador, isCorretor, isCreateMode, setValue, user]);
 
   useEffect(() => {
     if (!selectedEstado) {
@@ -518,6 +531,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
     if (!isEditMode) {
       setIsLoadingInitialData(false);
       setPageError(null);
+      setCurrentImovel(null);
       return;
     }
 
@@ -535,18 +549,20 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
       setGlobalError(null);
 
       try {
-        const response = await getImovelById(id);
+        const response = await getInternalImovelById(id);
 
         if (!isMounted) {
           return;
         }
 
         if (!canEditImovel(user, response)) {
-          setPageError('Voce nao tem permissao para editar este imovel.');
+          setCurrentImovel(null);
+          setPageError(IMOVEL_ACTION_FORBIDDEN_MESSAGE);
           return;
         }
 
         preserveCidadeOnStateLoadRef.current = true;
+        setCurrentImovel(response);
         setCurrentImages(response.imagens ?? []);
         reset(mapImovelToFormValues(response, defaultCorretorCaptadorId));
         setPrecoInput(currencyFormatter.format(response.preco ?? 0));
@@ -556,10 +572,13 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
         }
 
         if (axios.isAxiosError(error) && error.response?.status === 403) {
-          setPageError('Voce nao tem permissao para editar este imovel.');
+          setCurrentImovel(null);
+          setPageError(IMOVEL_ACTION_FORBIDDEN_MESSAGE);
         } else if (axios.isAxiosError(error) && error.response?.status === 404) {
+          setCurrentImovel(null);
           setPageError('Imovel nao encontrado.');
         } else {
+          setCurrentImovel(null);
           setPageError(toFriendlyError(error, 'Nao foi possivel carregar os dados do imovel.'));
         }
       } finally {
@@ -615,7 +634,8 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
   };
 
   const refreshCurrentImages = async (imovelId: string | number) => {
-    const response = await getImovelById(imovelId);
+    const response = await getInternalImovelById(imovelId);
+    setCurrentImovel(response);
     setCurrentImages(response.imagens ?? []);
   };
 
@@ -722,7 +742,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
       setUploadProgress(0);
       setPhotoFeedback({
         title: 'Falha ao adicionar fotos',
-        description: toFriendlyError(error, 'Nao foi possivel enviar as novas fotos.'),
+        description: toImovelActionError(error, 'Nao foi possivel enviar as novas fotos.'),
         variant: 'error',
       });
     } finally {
@@ -758,7 +778,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
     } catch (error) {
       setPhotoFeedback({
         title: 'Falha ao excluir foto',
-        description: toFriendlyError(error, 'Nao foi possivel excluir a foto selecionada.'),
+        description: toImovelActionError(error, 'Nao foi possivel excluir a foto selecionada.'),
         variant: 'error',
       });
     } finally {
@@ -777,15 +797,11 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
       }
 
       try {
-        await updateImovel(id, buildUpdatePayload(data, precoInput));
+        await updateImovel(id, buildUpdatePayload(data, precoInput, canAlterarCorretorCaptador));
         setSuccessMessage('Imovel atualizado com sucesso.');
         setIsSuccessModalOpen(true);
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 403) {
-          setGlobalError('Voce nao tem permissao para editar este imovel.');
-        } else {
-          setGlobalError(toFriendlyError(error, 'Nao foi possivel atualizar o imovel. Verifique os dados e tente novamente.'));
-        }
+        setGlobalError(toImovelActionError(error, 'Nao foi possivel atualizar o imovel. Verifique os dados e tente novamente.'));
       }
 
       return;
@@ -1034,10 +1050,12 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
           </div>
 
           <div className="form-grid">
-            {isCreateMode && (
+            {shouldShowCorretorCaptadorField && (
               <div className="form-group">
-                <label htmlFor="corretorCaptadorId">Corretor captador*</label>
-                {isCorretor ? (
+                <label htmlFor="corretorCaptadorId">
+                  Corretor captador{isCreateMode ? '*' : ''}
+                </label>
+                {isCorretor && isCreateMode ? (
                   <>
                     <input type="hidden" {...register('corretorCaptadorId')} />
                     <select
@@ -1175,7 +1193,7 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
           )}
         </FormSection>
 
-        {isEditMode && (
+        {isEditMode && canGerenciarFotos && (
           <FormSection
             title="Fotos atuais"
             subtitle="Gerencie as fotos vinculadas ao imovel sem alterar o restante do formulario."

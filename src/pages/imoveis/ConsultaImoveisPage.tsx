@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { User } from '../../api/types';
 import { getBrokerAndAdminUsersRequest } from '../../api/usersService';
@@ -20,12 +19,12 @@ import {
   getImoveis,
   inativarImovel,
   type GetImoveisFilters,
-  type Imovel,
+  type InternalImovel,
   type InativarImovelPayload,
 } from '../../services/imoveisService';
-import { canEditImovel } from '../../utils/imovelPermissions';
+import { toFriendlyError, toImovelActionError } from '../../utils/errorMessages';
+import { canEditImovel, canManageImovel } from '../../utils/imovelPermissions';
 import { canActivateImovel } from '../../utils/imovelStatus';
-import { toFriendlyError } from '../../utils/errorMessages';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -61,12 +60,12 @@ export function ConsultaImoveisPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [imoveis, setImoveis] = useState<Imovel[]>([]);
+  const [imoveis, setImoveis] = useState<InternalImovel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [total, setTotal] = useState<number | undefined>(undefined);
-  const [selectedImovel, setSelectedImovel] = useState<Imovel | null>(null);
+  const [selectedImovel, setSelectedImovel] = useState<InternalImovel | null>(null);
   const [isInactivating, setIsInactivating] = useState(false);
   const [activatingImovelId, setActivatingImovelId] = useState<string | number | null>(null);
   const [inactivationError, setInactivationError] = useState<string | null>(null);
@@ -152,20 +151,8 @@ export function ConsultaImoveisPage() {
     });
   };
 
-  const canInativarImovel = (imovel: Imovel) => {
-    if (!user) {
-      return false;
-    }
-
-    if (user.role === 'ADMIN') {
-      return true;
-    }
-
-    if (imovel.responsavelId === undefined || imovel.responsavelId === null) {
-      return false;
-    }
-
-    return String(imovel.responsavelId) === String(user.id);
+  const canInativarImovel = (imovel: InternalImovel) => {
+    return canManageImovel(user, imovel);
   };
 
   const loadUsuariosFechamento = useCallback(async () => {
@@ -185,7 +172,7 @@ export function ConsultaImoveisPage() {
     }
   }, []);
 
-  const openInactivationModal = (imovel: Imovel) => {
+  const openInactivationModal = (imovel: InternalImovel) => {
     setSuccessMessage(null);
     setInactivationError(null);
     setSelectedImovel(imovel);
@@ -195,7 +182,7 @@ export function ConsultaImoveisPage() {
     }
   };
 
-  const handleAtivarImovel = async (imovel: Imovel) => {
+  const handleAtivarImovel = async (imovel: InternalImovel) => {
     setSuccessMessage(null);
     setError(null);
     setActivatingImovelId(imovel.id);
@@ -205,7 +192,7 @@ export function ConsultaImoveisPage() {
       setSuccessMessage('Imovel ativado com sucesso.');
       await loadImoveis();
     } catch (apiError) {
-      setError(toFriendlyError(apiError, 'Nao foi possivel ativar o imovel. Tente novamente.'));
+      setError(toImovelActionError(apiError, 'Nao foi possivel ativar o imovel. Tente novamente.'));
     } finally {
       setActivatingImovelId(null);
     }
@@ -247,11 +234,7 @@ export function ConsultaImoveisPage() {
         await loadImoveis();
       }
     } catch (apiError) {
-      if (axios.isAxiosError(apiError) && apiError.response?.status === 403) {
-        setInactivationError('Voce nao tem permissao para inativar este imovel.');
-      } else {
-        setInactivationError(toFriendlyError(apiError, 'Nao foi possivel inativar o imovel. Tente novamente.'));
-      }
+      setInactivationError(toImovelActionError(apiError, 'Nao foi possivel inativar o imovel. Tente novamente.'));
     } finally {
       setIsInactivating(false);
     }

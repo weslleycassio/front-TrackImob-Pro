@@ -71,6 +71,7 @@ export type UpdateImovelPayload = {
   cidade: string;
   preco: number;
   descricao: string;
+  corretorCaptadorId?: string | number;
   quartos?: number | null;
   metragem?: number | null;
   vagasGaragem?: number | null;
@@ -93,7 +94,7 @@ type CreateImovelResponse = {
   };
 };
 
-export type Imovel = {
+export type PublicImovel = {
   id: string | number;
   titulo: string;
   tipo: TipoImovel | string;
@@ -103,17 +104,8 @@ export type Imovel = {
   cidade: string;
   preco: number;
   descricao?: string;
-  status: StatusImovel | string;
-  motivoInativacao?: MotivoInativacaoImovel | string | null;
-  descricaoInativacao?: string | null;
-  atualizadoPorNome?: string | null;
-  inativadoPorNome?: string | null;
-  responsavelFechamentoNome?: string | null;
   createdAt?: string;
   updatedAt?: string;
-  responsavelId?: string | number;
-  corretorCaptadorId?: string | number;
-  corretorCaptador?: UsuarioResumo | null;
   quartos?: number | null;
   metragem?: number | null;
   vagasGaragem?: number | null;
@@ -123,6 +115,20 @@ export type Imovel = {
   linkExternoVideos?: string | null;
   imagens: ImagemImovel[];
 };
+
+export type InternalImovel = PublicImovel & {
+  status: StatusImovel | string;
+  motivoInativacao?: MotivoInativacaoImovel | string | null;
+  descricaoInativacao?: string | null;
+  atualizadoPorNome?: string | null;
+  inativadoPorNome?: string | null;
+  responsavelFechamentoNome?: string | null;
+  responsavelId?: string | number;
+  corretorCaptadorId?: string | number;
+  corretorCaptador?: UsuarioResumo | null;
+};
+
+export type Imovel = InternalImovel;
 
 export type DadosCaptacaoImovel = {
   nomeProprietario?: string | null;
@@ -152,7 +158,18 @@ type RawUsuarioResumo = RawPessoaRelacionada & {
   } | null;
 };
 
-type RawImovel = Omit<Imovel, 'imagens' | 'responsavelId' | 'corretorCaptador' | 'estado'> & {
+type RawPublicImovel = Omit<PublicImovel, 'imagens' | 'estado'> & {
+  estado?: string;
+  uf?: string;
+  estadoSigla?: string;
+  estadoNome?: string;
+  imagens?: ImagemImovel[] | null;
+  imagem?: string;
+  foto?: string;
+  image?: string;
+};
+
+type RawInternalImovel = Omit<InternalImovel, 'imagens' | 'responsavelId' | 'corretorCaptador' | 'estado'> & {
   estado?: string;
   uf?: string;
   estadoSigla?: string;
@@ -218,7 +235,7 @@ export type GetImoveisFilters = {
 };
 
 export type GetImoveisResponse = {
-  data: Imovel[];
+  data: InternalImovel[];
   total?: number;
   page?: number;
   limit?: number;
@@ -226,18 +243,24 @@ export type GetImoveisResponse = {
 
 type RawGetImoveisResponse =
   | {
-      data?: RawImovel[];
+      data?: RawInternalImovel[];
       total?: number;
       page?: number;
       limit?: number;
     }
-  | RawImovel[];
+  | RawInternalImovel[];
 
-type RawGetImovelByIdResponse =
+type RawGetInternalImovelByIdResponse =
   | {
-      data?: RawImovel;
+      data?: RawInternalImovel;
     }
-  | RawImovel;
+  | RawInternalImovel;
+
+type RawGetPublicImovelByIdResponse =
+  | {
+      data?: RawPublicImovel;
+    }
+  | RawPublicImovel;
 
 type RawDadosCaptacaoImovel = DadosCaptacaoImovel & {
   proprietarioNome?: string | null;
@@ -256,7 +279,7 @@ function getUploadableFiles(files: File[]) {
   return files.filter((file) => file instanceof File && file.size > 0);
 }
 
-function normalizeImagens(rawImovel: RawImovel): ImagemImovel[] {
+function normalizeImagens(rawImovel: RawPublicImovel | RawInternalImovel): ImagemImovel[] {
   if (Array.isArray(rawImovel.imagens) && rawImovel.imagens.length > 0) {
     return rawImovel.imagens
       .filter((imagem): imagem is ImagemImovel => Boolean(imagem?.id && imagem?.url))
@@ -334,7 +357,31 @@ function normalizeNomeRelacionado(value?: RawUsuarioResumo | string | null): str
   return normalizedUsuario?.nome ?? null;
 }
 
-function normalizeImovel(rawImovel: RawImovel): Imovel {
+function normalizeImovelBase(rawImovel: RawPublicImovel | RawInternalImovel): PublicImovel {
+  return {
+    id: rawImovel.id,
+    titulo: rawImovel.titulo,
+    tipo: rawImovel.tipo,
+    finalidade: rawImovel.finalidade,
+    estado: rawImovel.estado ?? rawImovel.uf ?? rawImovel.estadoSigla ?? rawImovel.estadoNome ?? '',
+    bairro: rawImovel.bairro,
+    cidade: rawImovel.cidade,
+    preco: rawImovel.preco,
+    descricao: rawImovel.descricao,
+    createdAt: rawImovel.createdAt,
+    updatedAt: rawImovel.updatedAt,
+    quartos: rawImovel.quartos,
+    metragem: rawImovel.metragem,
+    vagasGaragem: rawImovel.vagasGaragem,
+    banheiros: rawImovel.banheiros,
+    suites: rawImovel.suites,
+    linkExternoFotos: rawImovel.linkExternoFotos,
+    linkExternoVideos: rawImovel.linkExternoVideos,
+    imagens: normalizeImagens(rawImovel),
+  };
+}
+
+function normalizeInternalImovel(rawImovel: RawInternalImovel): InternalImovel {
   const corretorCaptador = normalizeUsuarioResumo(rawImovel.corretorCaptador);
   const atualizadoPorNome =
     rawImovel.atualizadoPorNome ??
@@ -366,8 +413,8 @@ function normalizeImovel(rawImovel: RawImovel): Imovel {
     null;
 
   return {
-    ...rawImovel,
-    estado: rawImovel.estado ?? rawImovel.uf ?? rawImovel.estadoSigla ?? rawImovel.estadoNome ?? '',
+    ...normalizeImovelBase(rawImovel),
+    status: rawImovel.status,
     motivoInativacao:
       rawImovel.motivoInativacao ?? rawImovel.motivo_inativacao ?? rawImovel.inactivationReason ?? rawImovel.motivo ?? null,
     descricaoInativacao:
@@ -399,8 +446,11 @@ function normalizeImovel(rawImovel: RawImovel): Imovel {
       rawImovel.captadorId ??
       corretorCaptador?.id,
     corretorCaptador,
-    imagens: normalizeImagens(rawImovel),
   };
+}
+
+function normalizePublicImovel(rawImovel: RawPublicImovel): PublicImovel {
+  return normalizeImovelBase(rawImovel);
 }
 
 function normalizeDadosCaptacao(rawDadosCaptacao?: RawDadosCaptacaoImovel | null): DadosCaptacaoImovel {
@@ -457,7 +507,7 @@ export async function getImoveis(filters: GetImoveisFilters = {}) {
 
   if (Array.isArray(data)) {
     return {
-      data: data.map(normalizeImovel),
+      data: data.map(normalizeInternalImovel),
       total: data.length,
       page: filters.page,
       limit: filters.limit,
@@ -466,15 +516,26 @@ export async function getImoveis(filters: GetImoveisFilters = {}) {
 
   return {
     ...data,
-    data: (data.data ?? []).map(normalizeImovel),
+    data: (data.data ?? []).map(normalizeInternalImovel),
   } satisfies GetImoveisResponse;
 }
 
-export async function getImovelById(imovelId: string | number) {
-  const { data } = await apiClient.get<RawGetImovelByIdResponse>(imoveisEndpoints.detail(imovelId));
-  const rawImovel = (data as { data?: RawImovel }).data ?? (data as RawImovel);
+export async function getInternalImovelById(imovelId: string | number) {
+  const { data } = await apiClient.get<RawGetInternalImovelByIdResponse>(imoveisEndpoints.detail(imovelId));
+  const rawImovel = (data as { data?: RawInternalImovel }).data ?? (data as RawInternalImovel);
 
-  return normalizeImovel(rawImovel);
+  return normalizeInternalImovel(rawImovel);
+}
+
+export async function getPublicImovelById(imovelId: string | number) {
+  const { data } = await apiClient.get<RawGetPublicImovelByIdResponse>(imoveisEndpoints.publicDetail(imovelId));
+  const rawImovel = (data as { data?: RawPublicImovel }).data ?? (data as RawPublicImovel);
+
+  return normalizePublicImovel(rawImovel);
+}
+
+export async function getImovelById(imovelId: string | number) {
+  return getInternalImovelById(imovelId);
 }
 
 export async function getDadosCaptacaoImovel(imovelId: string | number) {
