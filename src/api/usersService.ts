@@ -35,6 +35,10 @@ export async function getBrokerAndAdminUsersRequest() {
   return response.data.filter((usuario) => PERFIS_CORRETOR_CAPTADOR.has(usuario.role));
 }
 
+export async function getAssignableUsersRequest() {
+  return getBrokerAndAdminUsersRequest();
+}
+
 export async function getLoggedUserRequest() {
   const { data } = await apiClient.get<UpdateMeResponse>('/usuarios/me');
   return extractLoggedUser(data);

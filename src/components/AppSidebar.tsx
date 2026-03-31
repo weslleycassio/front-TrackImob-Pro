@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Building2, LayoutDashboard, LogOut, Users } from 'lucide-react';
+import { BookUser, Building2, LayoutDashboard, LogOut, Users, Workflow } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../auth/useAuth';
 import { Skeleton } from './ui/Skeleton';
 
 type AppSidebarProps = {
@@ -19,26 +20,40 @@ type NavItem = {
   icon: ReactNode;
 };
 
-const navItems: NavItem[] = [
-  {
-    label: 'Dashboard',
-    to: '/app',
-    description: 'Visao geral do negocio',
-    icon: <LayoutDashboard size={20} aria-hidden="true" />,
-  },
-  {
-    label: 'Imoveis',
-    to: '/imoveis',
-    description: 'Portfolio e captacao',
-    icon: <Building2 size={20} aria-hidden="true" />,
-  },
-  {
-    label: 'Usuarios',
-    to: '/app/usuarios',
-    description: 'Equipe e permissoes',
-    icon: <Users size={20} aria-hidden="true" />,
-  },
-];
+function getNavItems(isAdmin: boolean): NavItem[] {
+  return [
+    {
+      label: 'Dashboard',
+      to: '/app',
+      description: 'Visao geral do negocio',
+      icon: <LayoutDashboard size={20} aria-hidden="true" />,
+    },
+    {
+      label: 'Imoveis',
+      to: '/imoveis',
+      description: 'Portfolio e captacao',
+      icon: <Building2 size={20} aria-hidden="true" />,
+    },
+    {
+      label: 'CRM',
+      to: '/app/crm',
+      description: isAdmin ? 'Leads, pipeline e operacao' : 'Seus leads e acompanhamento',
+      icon: <Workflow size={20} aria-hidden="true" />,
+    },
+    {
+      label: 'Contatos',
+      to: '/app/leads',
+      description: 'Contatos e oportunidades do CRM',
+      icon: <BookUser size={20} aria-hidden="true" />,
+    },
+    {
+      label: 'Usuarios',
+      to: '/app/usuarios',
+      description: 'Equipe e permissoes',
+      icon: <Users size={20} aria-hidden="true" />,
+    },
+  ];
+}
 
 const getNavClassName = ({ isActive }: { isActive: boolean }) =>
   isActive ? 'app-sidebar__link app-sidebar__link--active' : 'app-sidebar__link';
@@ -65,9 +80,11 @@ export function AppSidebar({
   companyLogoUrl,
   isCompanyLoading = false,
 }: AppSidebarProps) {
+  const { user } = useAuth();
   const [logoFailed, setLogoFailed] = useState(false);
   const companyInitials = useMemo(() => getCompanyInitials(companyName), [companyName]);
   const shouldShowLogo = Boolean(companyLogoUrl && !logoFailed);
+  const navItems = useMemo(() => getNavItems(user?.role === 'ADMIN'), [user?.role]);
 
   useEffect(() => {
     setLogoFailed(false);
