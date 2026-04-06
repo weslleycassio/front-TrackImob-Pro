@@ -1,8 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { EntityId } from '../../api/types';
 import type { CrmLead, CrmPipelineStage } from '../../types/crm';
 import { normalizeHexColor, toRgba } from '../../utils/color';
-import { calculateAge, formatCurrency, formatPhone, getInitials, hasFinancialData, truncateText } from './leads/leadUtils';
+import {
+  calculateAge,
+  formatCurrency,
+  formatDuration,
+  formatPhone,
+  getInitials,
+  getLeadCurrentStageDurationMs,
+  hasFinancialData,
+  truncateText,
+} from './leads/leadUtils';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 
@@ -27,6 +36,15 @@ export function LeadKanbanBoard({
 }: LeadKanbanBoardProps) {
   const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
   const [hoverStageId, setHoverStageId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 60000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const groupedLeads = useMemo(() => {
     const initialGroups = stages.reduce<Record<string, CrmLead[]>>((accumulator, stage) => {
@@ -116,6 +134,10 @@ export function LeadKanbanBoard({
                 const nextStage = stageIndex >= 0 && stageIndex < stages.length - 1 ? stages[stageIndex + 1] : null;
                 const responsavelPrincipal = lead.responsaveis[0]?.nome ?? lead.createdByUser?.nome ?? 'Definido automaticamente';
                 const visibleCoResponsaveis = lead.coResponsaveis.slice(0, 3);
+                const currentStageDurationMs = getLeadCurrentStageDurationMs(lead, now);
+                const hasStageDuration = currentStageDurationMs !== null;
+                const isStageOverSla =
+                  stage.slaHoras !== null && currentStageDurationMs !== null && currentStageDurationMs > stage.slaHoras * 60 * 60 * 1000;
                 const financialHighlights = [
                   lead.entrada !== null ? { label: 'Entrada', value: formatCurrency(lead.entrada) } : null,
                   lead.fgts !== null ? { label: 'FGTS', value: formatCurrency(lead.fgts) } : null,
@@ -170,6 +192,23 @@ export function LeadKanbanBoard({
                       </div>
                       <Badge variant="info">{lead.origem || 'Sem origem'}</Badge>
                     </div>
+
+                    {hasStageDuration ? (
+                      <div
+                        className={[
+                          'crm-lead-card__stage-time',
+                          isStageOverSla ? 'crm-lead-card__stage-time--warning' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                      >
+                        <span>Tempo nesta coluna</span>
+                        <strong>{formatDuration(currentStageDurationMs, { compact: true })}</strong>
+                        {stage.slaHoras !== null ? (
+                          <small>{isStageOverSla ? `SLA de ${stage.slaHoras}h excedido` : `SLA de ${stage.slaHoras}h`}</small>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {hasFinancialData(lead) && financialHighlights.length > 0 ? (
                       <div className="crm-lead-card__financial">

@@ -64,6 +64,10 @@ function toBooleanValue(value: unknown, fallback = false) {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function toOptionalBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
 function parseNumericString(value: string) {
   const normalized = value.trim().replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
   const parsed = Number(normalized);
@@ -319,12 +323,47 @@ function normalizeLeadStageHistoryItem(raw: unknown): CrmLeadStageHistoryItem | 
     return null;
   }
 
+  const durationInMilliseconds = toOptionalNumber(
+    raw.durationMs ??
+      raw.durationInMs ??
+      raw.tempoNaEtapaMs ??
+      raw.tempoNaColunaMs ??
+      raw.stageDurationMs ??
+      raw.stageTimeMs,
+  );
+  const durationInSeconds = toOptionalNumber(
+    raw.durationSeconds ??
+      raw.durationInSeconds ??
+      raw.tempoNaEtapaSegundos ??
+      raw.tempoNaColunaSegundos ??
+      raw.stageDurationSeconds,
+  );
+  const durationMs = durationInMilliseconds ?? (durationInSeconds !== null ? durationInSeconds * 1000 : null);
+
   return {
     id: toEntityId(raw.id),
     leadId: toEntityId(raw.leadId),
-    fromStageId: raw.fromStageId !== undefined && raw.fromStageId !== null ? toEntityId(raw.fromStageId) : null,
-    toStageId: toEntityId(raw.toStageId),
-    movedByUserId: raw.movedByUserId !== undefined && raw.movedByUserId !== null ? toEntityId(raw.movedByUserId) : null,
+    fromStageId:
+      raw.fromStageId !== undefined && raw.fromStageId !== null
+        ? toEntityId(raw.fromStageId)
+        : raw.previousStageId !== undefined && raw.previousStageId !== null
+          ? toEntityId(raw.previousStageId)
+          : raw.colunaOrigemId !== undefined && raw.colunaOrigemId !== null
+            ? toEntityId(raw.colunaOrigemId)
+            : null,
+    toStageId: toEntityId(raw.toStageId ?? raw.stageId ?? raw.currentStageId ?? raw.colunaDestinoId ?? raw.crmPipelineStageId),
+    movedByUserId:
+      raw.movedByUserId !== undefined && raw.movedByUserId !== null
+        ? toEntityId(raw.movedByUserId)
+        : raw.userId !== undefined && raw.userId !== null
+          ? toEntityId(raw.userId)
+          : raw.usuarioId !== undefined && raw.usuarioId !== null
+            ? toEntityId(raw.usuarioId)
+            : null,
+    enteredAt: toOptionalDate(raw.enteredAt ?? raw.enteredStageAt ?? raw.enteredColumnAt ?? raw.startedAt ?? raw.movedAt ?? raw.createdAt),
+    exitedAt: toNullableDate(raw.exitedAt ?? raw.leftStageAt ?? raw.leftColumnAt ?? raw.finishedAt ?? raw.endedAt),
+    durationMs,
+    isCurrent: toOptionalBoolean(raw.isCurrent ?? raw.current ?? raw.etapaAtual ?? raw.colunaAtual),
     movedAt: toOptionalDate(raw.movedAt ?? raw.createdAt),
     fromStage: normalizeLeadStageSummary(raw.fromStage),
     toStage: normalizeLeadStageSummary(raw.toStage),
@@ -348,9 +387,28 @@ function normalizeLead(raw: unknown): CrmLead {
     normalizeLeadUsersCollection(
       lead.coResponsaveis ?? lead.coResponsavelUsers ?? lead.coResponsavelUsuarios ?? lead.coresponsaveis ?? lead.coResponsavel,
     ) || [];
-  const stageHistory = extractListPayload(lead.stageHistory, ['data', 'stageHistory'])
+  const stageHistory = extractListPayload(
+    lead.stageHistory ?? lead.historicoEtapas ?? lead.historicoColunas ?? lead.stageMovements,
+    ['data', 'stageHistory', 'historicoEtapas', 'historicoColunas', 'movements'],
+  )
     .map(normalizeLeadStageHistoryItem)
     .filter((item): item is CrmLeadStageHistoryItem => item !== null);
+  const currentStageDurationInMilliseconds = toOptionalNumber(
+    lead.currentStageDurationMs ??
+      lead.currentStageTimeMs ??
+      lead.tempoEtapaAtualMs ??
+      lead.tempoColunaAtualMs ??
+      lead.stageDurationMs,
+  );
+  const currentStageDurationInSeconds = toOptionalNumber(
+    lead.currentStageDurationSeconds ??
+      lead.currentStageTimeSeconds ??
+      lead.tempoEtapaAtualSegundos ??
+      lead.tempoColunaAtualSegundos ??
+      lead.stageDurationSeconds,
+  );
+  const currentStageDurationMs =
+    currentStageDurationInMilliseconds ?? (currentStageDurationInSeconds !== null ? currentStageDurationInSeconds * 1000 : null);
 
   return {
     id: toEntityId(lead.id),
@@ -373,6 +431,16 @@ function normalizeLead(raw: unknown): CrmLead {
     pipeline: normalizedPipeline,
     stage: normalizedStage,
     createdByUser: isRecord(lead.createdByUser) ? normalizeLeadUser(lead.createdByUser) : null,
+    enteredCurrentStageAt: toNullableDate(
+      lead.enteredCurrentStageAt ??
+        lead.currentStageEnteredAt ??
+        lead.currentStageStartedAt ??
+        lead.enteredStageAt ??
+        lead.enteredColumnAt ??
+        lead.entradaEtapaAtualEm ??
+        lead.entradaColunaAtualEm,
+    ),
+    currentStageDurationMs,
     stageHistory,
     createdByUserId:
       lead.createdByUserId !== undefined

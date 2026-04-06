@@ -6,7 +6,17 @@ import { Badge } from '../../ui/Badge';
 import { Button } from '../../ui/Button';
 import { Select } from '../../ui/Select';
 import { Spinner } from '../../ui/Spinner';
-import { calculateAge, formatCurrency, formatPhone, truncateText } from './leadUtils';
+import {
+  calculateAge,
+  formatCurrency,
+  formatDateTime,
+  formatDuration,
+  formatPhone,
+  getLeadCurrentStageDurationMs,
+  getLeadCurrentStageEnteredAt,
+  getSortedLeadStageHistory,
+  truncateText,
+} from './leadUtils';
 
 type LeadDetailsSheetProps = {
   isOpen: boolean;
@@ -79,7 +89,21 @@ export function LeadDetailsSheet({
   }, [isOpen, onClose]);
 
   const [selectedStageId, setSelectedStageId] = useState('');
+  const [now, setNow] = useState(() => Date.now());
   const age = calculateAge(lead?.dataNascimento ?? null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 60000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isOpen]);
+
   const currentStage = useMemo(() => {
     if (!lead) {
       return null;
@@ -135,6 +159,15 @@ export function LeadDetailsSheet({
 
     setSelectedStageId(String(currentStage?.id ?? lead.stageId ?? ''));
   }, [currentStage?.id, lead?.id, lead?.stageId]);
+
+  const currentStageEnteredAt = lead ? getLeadCurrentStageEnteredAt(lead) : null;
+  const currentStageDurationMs = lead ? getLeadCurrentStageDurationMs(lead, now) : null;
+  const sortedStageHistory = lead ? getSortedLeadStageHistory(lead) : [];
+  const isCurrentStageOverSla =
+    currentStage?.slaHoras !== null &&
+    currentStage?.slaHoras !== undefined &&
+    currentStageDurationMs !== null &&
+    currentStageDurationMs > currentStage.slaHoras * 60 * 60 * 1000;
 
   return (
     <>
@@ -247,6 +280,24 @@ export function LeadDetailsSheet({
                         : 'Nao informado'}
                   </dd>
                 </div>
+                <div>
+                  <dt>Entrou nesta coluna</dt>
+                  <dd>{formatDateTime(currentStageEnteredAt)}</dd>
+                </div>
+                <div>
+                  <dt>Tempo nesta coluna</dt>
+                  <dd>{formatDuration(currentStageDurationMs)}</dd>
+                </div>
+                <div>
+                  <dt>SLA da coluna</dt>
+                  <dd>{currentStage?.slaHoras !== null && currentStage?.slaHoras !== undefined ? `${currentStage.slaHoras}h` : 'Nao definido'}</dd>
+                </div>
+                {currentStage?.slaHoras !== null && currentStage?.slaHoras !== undefined && currentStageDurationMs !== null ? (
+                  <div>
+                    <dt>Status do SLA</dt>
+                    <dd>{isCurrentStageOverSla ? 'SLA excedido' : 'Dentro do prazo'}</dd>
+                  </div>
+                ) : null}
               </dl>
 
               {canChangeStage ? (
@@ -289,6 +340,49 @@ export function LeadDetailsSheet({
                   {stageUpdateError ? <div className="global-error">{stageUpdateError}</div> : null}
                 </div>
               ) : null}
+            </section>
+
+            <section className="right-side-sheet-section">
+              <h3>Historico de colunas</h3>
+
+              {sortedStageHistory.length > 0 ? (
+                <div className="crm-stage-history-list">
+                  {sortedStageHistory.map((historyItem) => {
+                    const destinationStageName = historyItem.toStage?.nome ?? 'Coluna nao informada';
+                    const originStageName = historyItem.fromStage?.nome ?? 'Entrada inicial';
+                    const historyDurationMs =
+                      historyItem.durationMs ??
+                      ((historyItem.isCurrent === true || !historyItem.exitedAt) &&
+                      String(historyItem.toStage?.id ?? historyItem.toStageId) === String(lead.stageId)
+                        ? currentStageDurationMs
+                        : null);
+                    const isCurrentHistoryItem =
+                      historyItem.isCurrent === true ||
+                      (!historyItem.exitedAt && String(historyItem.toStage?.id ?? historyItem.toStageId) === String(lead.stageId));
+
+                    return (
+                      <article key={historyItem.id} className="crm-stage-history-item">
+                        <div className="crm-stage-history-item__header">
+                          <div>
+                            <strong>{destinationStageName}</strong>
+                            <span>{`${originStageName} -> ${destinationStageName}`}</span>
+                          </div>
+                          {isCurrentHistoryItem ? <Badge variant="success">Atual</Badge> : null}
+                        </div>
+
+                        <div className="crm-stage-history-item__meta">
+                          <span>{`Entrada: ${formatDateTime(historyItem.enteredAt ?? historyItem.movedAt ?? null)}`}</span>
+                          <span>{`Saida: ${historyItem.exitedAt ? formatDateTime(historyItem.exitedAt) : 'Atual'}`}</span>
+                          <span>{`Tempo na coluna: ${formatDuration(historyDurationMs)}`}</span>
+                          <span>{`Movido por: ${historyItem.movedByUser?.nome ?? 'Nao informado'}`}</span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="crm-contact-details__empty">Nenhuma movimentacao de coluna foi retornada pela API para este lead.</p>
+              )}
             </section>
 
             <section className="right-side-sheet-section">

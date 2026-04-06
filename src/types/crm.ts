@@ -91,6 +91,10 @@ export type CrmLeadStageHistoryItem = {
   fromStageId: EntityId | null;
   toStageId: EntityId;
   movedByUserId: EntityId | null;
+  enteredAt?: string;
+  exitedAt?: string | null;
+  durationMs?: number | null;
+  isCurrent?: boolean;
   movedAt?: string;
   fromStage?: CrmLeadStageSummary | null;
   toStage?: CrmLeadStageSummary | null;
@@ -116,6 +120,8 @@ export type CrmLead = {
   pipeline?: CrmLeadPipelineSummary | null;
   stage?: CrmLeadStageSummary | null;
   createdByUser?: CrmLeadUserSummary | null;
+  enteredCurrentStageAt?: string | null;
+  currentStageDurationMs?: number | null;
   stageHistory?: CrmLeadStageHistoryItem[];
   createdByUserId?: EntityId;
   createdAt?: string;
