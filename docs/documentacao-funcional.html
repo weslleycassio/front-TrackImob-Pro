@@ -1,0 +1,445 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentacao Funcional - TrackImob Pro</title>
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;color:#1f2937;max-width:900px;margin:0 auto;padding:48px 56px;line-height:1.6;background:#fff;}
+h1,h2,h3,h4{color:#0f172a;line-height:1.25;margin:1.4em 0 .5em;}
+h1{font-size:30px;border-bottom:2px solid #e5e7eb;padding-bottom:12px;margin-top:0;}
+h2{font-size:22px;margin-top:2em;}
+h3{font-size:18px;margin-top:1.6em;}
+h4{font-size:15px;margin-top:1.4em;}
+p{margin:.7em 0;}
+ul{margin:.3em 0 .9em 1.4em;padding:0;}
+li{margin:.2em 0;}
+code{font-family:Consolas,monospace;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:1px 5px;font-size:.95em;}
+@page{size:A4;margin:18mm 14mm;}
+</style>
+</head>
+<body>
+<h1>Documentacao Funcional</h1>
+<h2>1. Visao geral</h2>
+<p>O <code>Front TrackImob Pro</code> e a interface web da operacao imobiliaria multi-imobiliaria. O projeto foi construido em <code>React + TypeScript + Vite</code> e hoje cobre os fluxos principais de autenticacao, cadastro da imobiliaria, gestao de usuarios, dashboard e gestao de imoveis.</p>
+<p>Esta documentacao descreve o comportamento funcional atual do frontend, considerando as regras e ajustes implantados ate o momento.</p>
+<h2>2. Objetivo do produto</h2>
+<p>O sistema foi pensado para que cada imobiliaria opere sua propria carteira dentro de um ambiente autenticado, com:</p>
+<ul>
+<li>acesso por perfis</li>
+<li>controle de usuarios da equipe</li>
+<li>cadastro, consulta, edicao e visualizacao de imoveis</li>
+<li>controle de fotos, links externos e dados de captacao</li>
+<li>indicadores basicos da operacao no dashboard</li>
+</ul>
+<h2>3. Perfis de usuario</h2>
+<p>Atualmente o frontend trabalha com dois perfis:</p>
+<ul>
+<li><code>ADMIN</code></li>
+<ul>
+<li>gerencia equipe</li>
+<li>pode cadastrar usuarios</li>
+<li>pode alterar corretor captador de um imovel</li>
+<li>pode editar, ativar, inativar, adicionar foto, excluir foto e ver dados de captacao de qualquer imovel da propria imobiliaria</li>
+</ul>
+<li><code>CORRETOR</code></li>
+<ul>
+<li>acessa a area autenticada</li>
+<li>pode operar imoveis quando for o corretor captador do registro</li>
+<li>nao pode cadastrar usuarios</li>
+<li>nao pode alterar corretor captador de um imovel ja existente</li>
+</ul>
+</ul>
+<h2>4. Estrutura de acesso</h2>
+<h3>4.1 Rotas publicas</h3>
+<ul>
+<li><code>/login</code></li>
+<ul>
+<li>autentica o usuario</li>
+</ul>
+<li><code>/register</code></li>
+<ul>
+<li>cadastra a imobiliaria e o usuario administrador inicial</li>
+<li>a rota continua ativa por URL direta, mesmo sem botao visivel na tela de login</li>
+</ul>
+<li><code>/esqueci-senha</code></li>
+<ul>
+<li>inicio do fluxo de recuperacao de senha</li>
+</ul>
+<li><code>/redefinir-senha</code></li>
+<ul>
+<li>conclusao do fluxo de redefinicao de senha</li>
+</ul>
+</ul>
+<h3>4.2 Rotas autenticadas</h3>
+<p>Todas as rotas abaixo dependem de autenticacao:</p>
+<ul>
+<li><code>/app</code></li>
+<ul>
+<li>dashboard inicial</li>
+</ul>
+<li><code>/imoveis</code></li>
+<ul>
+<li>consulta da carteira</li>
+</ul>
+<li><code>/imoveis/cadastrar</code></li>
+<ul>
+<li>cadastro de imovel</li>
+</ul>
+<li><code>/imoveis/:id</code></li>
+<ul>
+<li>visualizacao detalhada do imovel</li>
+</ul>
+<li><code>/imoveis/:id/editar</code></li>
+<ul>
+<li>edicao do imovel</li>
+</ul>
+<li><code>/app/usuarios</code></li>
+<ul>
+<li>listagem da equipe</li>
+</ul>
+<li><code>/app/usuarios/cadastrar</code></li>
+<ul>
+<li>cadastro de usuario</li>
+<li>acesso apenas para <code>ADMIN</code></li>
+</ul>
+</ul>
+<h2>5. Modulos funcionais</h2>
+<h3>5.1 Autenticacao e sessao</h3>
+<h4>Login</h4>
+<p>Na tela de login o usuario informa <code>email</code> e <code>senha</code>. Em caso de sucesso, o token e os dados do usuario sao armazenados na sessao da aplicacao e o usuario e redirecionado para <code>/app</code>.</p>
+<h4>Cadastro da imobiliaria</h4>
+<p>O fluxo de cadastro permite criar:</p>
+<ul>
+<li>dados da imobiliaria</li>
+<ul>
+<li>nome</li>
+<li>telefone</li>
+<li>email opcional</li>
+<li>CNPJ opcional</li>
+</ul>
+<li>dados do administrador inicial</li>
+<ul>
+<li>nome</li>
+<li>telefone</li>
+<li>email</li>
+<li>senha</li>
+</ul>
+</ul>
+<p>Se o backend devolver <code>token</code> e <code>user</code>, o sistema ja autentica automaticamente o administrador. Caso contrario, exibe sucesso e redireciona para login.</p>
+<h4>Sessao e expiracao</h4>
+<p>O frontend ja possui gerenciamento basico de sessao com:</p>
+<ul>
+<li>leitura de expiracao do JWT</li>
+<li>logout automatico por expiracao</li>
+<li>logout automatico por inatividade</li>
+<li>sincronizacao de logout entre abas</li>
+<li>encerramento automatico quando a API retorna <code>401</code></li>
+</ul>
+<p>Mensagens de encerramento da sessao sao exibidas no login para informar o motivo:</p>
+<ul>
+<li>sessao expirada</li>
+<li>inatividade</li>
+<li>autenticacao invalida</li>
+<li>logout sincronizado entre abas</li>
+</ul>
+<p>Observacao: o frontend ainda nao renova token por atividade, porque isso depende de endpoint de refresh no backend.</p>
+<h3>5.2 Layout autenticado</h3>
+<p>A area autenticada usa um layout comum com:</p>
+<ul>
+<li>sidebar de navegacao</li>
+<li>header com contexto da imobiliaria e usuario</li>
+<li>rodape</li>
+<li>modal para editar perfil</li>
+<li>modal para alterar senha</li>
+<li>acao de logout</li>
+</ul>
+<p>O layout tambem busca os dados da imobiliaria logada para compor a experiencia visual.</p>
+<h3>5.3 Dashboard</h3>
+<p>O dashboard apresenta uma visao inicial da operacao com:</p>
+<ul>
+<li>total de imoveis</li>
+<li>total de imoveis ativos</li>
+<li>total de imoveis inativos</li>
+<li>total de usuarios</li>
+</ul>
+<p>Tambem oferece atalhos para:</p>
+<ul>
+<li>cadastrar imovel</li>
+<li>consultar carteira</li>
+<li>gerenciar equipe</li>
+</ul>
+<p>Quando ainda nao existem dados suficientes, a interface mostra estado vazio orientando o primeiro cadastro.</p>
+<h3>5.4 Usuarios</h3>
+<h4>Listagem de usuarios</h4>
+<p>A tela <code>/app/usuarios</code> exibe:</p>
+<ul>
+<li>nome</li>
+<li>email</li>
+<li>telefone</li>
+<li>funcao</li>
+<li>status</li>
+</ul>
+<p>Comportamento por perfil:</p>
+<ul>
+<li><code>ADMIN</code></li>
+<ul>
+<li>visualiza a listagem</li>
+<li>pode abrir modal de edicao</li>
+<li>ve o botao para cadastrar usuario</li>
+</ul>
+<li><code>CORRETOR</code></li>
+<ul>
+<li>visualiza a listagem</li>
+<li>nao ve botao de cadastro</li>
+<li>nao ve a acao de editar</li>
+</ul>
+</ul>
+<h4>Cadastro de usuario</h4>
+<p>Disponivel apenas para <code>ADMIN</code>, com os campos:</p>
+<ul>
+<li>nome</li>
+<li>telefone</li>
+<li>email</li>
+<li>senha</li>
+<li>perfil (<code>ADMIN</code> ou <code>CORRETOR</code>)</li>
+</ul>
+<h4>Edicao de usuario</h4>
+<p>A edicao acontece em modal na propria listagem e permite ajustar:</p>
+<ul>
+<li>funcao</li>
+<li>telefone</li>
+<li>status ativo/inativo</li>
+</ul>
+<h3>5.5 Imoveis</h3>
+<p>O modulo de imoveis concentra o nucleo da operacao do sistema.</p>
+<h4>Consulta da carteira</h4>
+<p>A tela <code>/imoveis</code> permite:</p>
+<ul>
+<li>listar imoveis com paginacao</li>
+<li>filtrar por busca, cidade, bairro, tipo, finalidade, status e faixa de preco</li>
+<li>visualizar um imovel</li>
+<li>editar um imovel</li>
+<li>ativar um imovel</li>
+<li>inativar um imovel</li>
+</ul>
+<p>Quando nao ha registros, a tela mostra um estado vazio com convite para cadastrar o primeiro imovel.</p>
+<h4>Cadastro de imovel</h4>
+<p>O fluxo de cadastro contempla:</p>
+<ul>
+<li>dados principais</li>
+<ul>
+<li>titulo</li>
+<li>tipo</li>
+<li>finalidade</li>
+</ul>
+<li>endereco</li>
+<ul>
+<li>estado</li>
+<li>cidade</li>
+<li>bairro</li>
+</ul>
+<li>valores</li>
+<ul>
+<li>preco</li>
+<li>status</li>
+<li>corretor captador</li>
+</ul>
+<li>caracteristicas</li>
+<ul>
+<li>quartos</li>
+<li>metragem</li>
+<li>vagas de garagem</li>
+<li>banheiros</li>
+<li>suites</li>
+</ul>
+<li>midia</li>
+<ul>
+<li>link externo de fotos</li>
+<li>link externo de videos</li>
+<li>upload de imagens</li>
+</ul>
+<li>observacoes</li>
+<ul>
+<li>descricao</li>
+<li>nome do proprietario</li>
+<li>telefone do proprietario</li>
+<li>endereco da captacao</li>
+</ul>
+</ul>
+<p>Comportamentos relevantes:</p>
+<ul>
+<li>o campo de <code>corretor captador</code> e obrigatorio no cadastro</li>
+<li>se o usuario logado for <code>CORRETOR</code>, o sistema fixa esse usuario como captador no cadastro</li>
+<li>estados e cidades sao carregados dinamicamente</li>
+<li>o upload de imagens valida quantidade, formato e tamanho</li>
+</ul>
+<h4>Edicao de imovel</h4>
+<p>Na edicao, o sistema carrega o imovel e permite atualizar os dados do formulario mantendo o layout atual da tela.</p>
+<p>Regras relevantes:</p>
+<ul>
+<li>a alteracao do <code>corretor captador</code> fica disponivel somente para <code>ADMIN</code></li>
+<li>a gestao de fotos atuais segue permissao de interface</li>
+<li>o frontend trata <code>403</code> com mensagem amigavel para o usuario</li>
+</ul>
+<h4>Visualizacao do imovel</h4>
+<p>A tela de detalhe apresenta:</p>
+<ul>
+<li>carrossel de imagens</li>
+<li>dados principais do imovel</li>
+<li>descricao</li>
+<li>informacoes de cadastro</li>
+<ul>
+<li>criado em</li>
+<li>atualizado em</li>
+<li>quem atualizou</li>
+<li>corretor captador</li>
+</ul>
+<li>quando inativo</li>
+<ul>
+<li>motivo</li>
+<li>corretor do fechamento</li>
+<li>quem inativou</li>
+<li>descricao da inativacao</li>
+</ul>
+</ul>
+<p>Tambem pode exibir o painel de <code>Informacoes extras</code>, reunindo:</p>
+<ul>
+<li>links externos</li>
+<li>dados de captacao, quando permitidos</li>
+</ul>
+<h4>Inativacao de imovel</h4>
+<p>O sistema usa modal para inativar imoveis. O fluxo permite selecionar dados de fechamento e registra o motivo informado pelo backend.</p>
+<h4>Ativacao de imovel</h4>
+<p>Quando o imovel esta inativo e o usuario tem permissao, a interface permite reativacao.</p>
+<h4>Fotos do imovel</h4>
+<p>No cadastro e na edicao existem acoes para:</p>
+<ul>
+<li>adicionar fotos</li>
+<li>excluir fotos</li>
+</ul>
+<p>Na edicao, as fotos atuais podem ser gerenciadas sem sair da pagina do formulario.</p>
+<h2>6. Regras de permissao refletidas no frontend</h2>
+<p>As regras abaixo ja foram ajustadas na interface. O backend continua sendo a fonte real de seguranca, mas o frontend agora reflete melhor o que o usuario pode fazer.</p>
+<h3>6.1 Editar imovel</h3>
+<p>Mostrar apenas para:</p>
+<ul>
+<li><code>ADMIN</code></li>
+<li><code>CORRETOR</code> que seja o <code>corretor captador</code> do imovel</li>
+</ul>
+<h3>6.2 Inativar imovel</h3>
+<p>Mostrar apenas para:</p>
+<ul>
+<li><code>ADMIN</code></li>
+<li><code>CORRETOR</code> que seja o <code>corretor captador</code> do imovel</li>
+</ul>
+<h3>6.3 Ativar imovel</h3>
+<p>Mostrar apenas para:</p>
+<ul>
+<li><code>ADMIN</code></li>
+<li><code>CORRETOR</code> que seja o <code>corretor captador</code> do imovel</li>
+</ul>
+<h3>6.4 Ver dados de captacao</h3>
+<p>Exibir apenas para:</p>
+<ul>
+<li><code>ADMIN</code></li>
+<li><code>CORRETOR</code> que seja o <code>corretor captador</code> do imovel</li>
+</ul>
+<h3>6.5 Adicionar foto</h3>
+<p>Mostrar apenas para:</p>
+<ul>
+<li><code>ADMIN</code></li>
+<li><code>CORRETOR</code> que seja o <code>corretor captador</code> do imovel</li>
+</ul>
+<h3>6.6 Excluir foto</h3>
+<p>Mostrar apenas para:</p>
+<ul>
+<li><code>ADMIN</code></li>
+<li><code>CORRETOR</code> que seja o <code>corretor captador</code> do imovel</li>
+</ul>
+<h3>6.7 Alterar corretor captador</h3>
+<p>Permitir apenas para:</p>
+<ul>
+<li><code>ADMIN</code></li>
+</ul>
+<h3>6.8 Tratamento de negacao pelo backend</h3>
+<p>Quando a API devolve <code>403</code> em acoes de imovel, o frontend apresenta a mensagem:</p>
+<p><code>Voce nao tem permissao para realizar esta acao neste imovel.</code></p>
+<h2>7. Contratos de dados de imovel no frontend</h2>
+<p>O frontend ja foi preparado para trabalhar com dois contratos distintos de detalhe de imovel:</p>
+<ul>
+<li>DTO interno</li>
+<ul>
+<li>usado no fluxo autenticado</li>
+<li>consumo de <code>GET /imoveis/:id</code></li>
+</ul>
+<li>DTO publico</li>
+<ul>
+<li>preparado para <code>GET /public/imoveis/:id</code></li>
+<li>mapeado por whitelist no frontend</li>
+</ul>
+</ul>
+<p>Importante:</p>
+<ul>
+<li>o frontend nao deve depender de um unico retorno para cenarios internos e publicos</li>
+<li>o contrato publico nao deve expor campos administrativos ou sensiveis</li>
+<li>ate aqui, a aplicacao ja possui servico preparado para consumo publico, mas ainda nao existe uma tela publica pronta no projeto</li>
+</ul>
+<h2>8. Regras de seguranca ja refletidas no frontend</h2>
+<h3>8.1 Multi-tenant</h3>
+<p>O frontend foi ajustado considerando que cada usuario opera apenas a propria imobiliaria. A seguranca real desse isolamento pertence ao backend, mas a interface foi organizada para trabalhar com esse modelo sem sugerir acoes indevidas.</p>
+<h3>8.2 Sessao</h3>
+<p>Ja existe controle de:</p>
+<ul>
+<li>expiracao de token</li>
+<li>inatividade</li>
+<li>logout sincronizado entre abas</li>
+</ul>
+<h3>8.3 Permissoes de interface</h3>
+<p>As acoes de imoveis passaram a respeitar:</p>
+<ul>
+<li>papel do usuario</li>
+<li>relacionamento do usuario com o imovel via <code>corretorCaptadorId</code></li>
+</ul>
+<h3>8.4 Tratamento de erros</h3>
+<p>O projeto possui funcoes utilitarias para transformar erros tecnicos da API em mensagens amigaveis na interface.</p>
+<h2>9. Integracoes esperadas do backend</h2>
+<p>O frontend depende de alguns comportamentos do backend para manter a experiencia consistente:</p>
+<ul>
+<li>autenticacao com JWT</li>
+<li>retorno do usuario autenticado</li>
+<li>endpoints de usuarios</li>
+<li>endpoints de imoveis</li>
+<li>endpoints de upload e exclusao de foto</li>
+<li>endpoints de localidades para estados e cidades</li>
+<li>regras reais de seguranca no servidor</li>
+</ul>
+<p>Pontos importantes:</p>
+<ul>
+<li>o frontend nao deve ser considerado camada de seguranca</li>
+<li>toda permissao deve ser validada tambem no backend</li>
+<li>a renovacao silenciosa da sessao ainda depende da existencia de endpoint de refresh</li>
+</ul>
+<h2>10. Estado atual do produto</h2>
+<p>Neste momento, o frontend ja entrega:</p>
+<ul>
+<li>fluxo de cadastro da imobiliaria</li>
+<li>login e controle de sessao</li>
+<li>dashboard com indicadores</li>
+<li>cadastro, consulta, visualizacao e edicao de imoveis</li>
+<li>upload e exclusao de fotos</li>
+<li>inativacao e ativacao de imoveis</li>
+<li>gestao basica de usuarios</li>
+<li>regras de permissao na interface para imoveis</li>
+<li>base preparada para separacao entre detalhe interno e detalhe publico de imovel</li>
+</ul>
+<h2>11. Proximos temas naturais de evolucao</h2>
+<p>Alguns temas que fazem sentido para a proxima etapa do produto:</p>
+<ul>
+<li>endpoint de refresh token para renovar sessao por atividade</li>
+<li>tela publica consumindo <code>GET /public/imoveis/:id</code></li>
+<li>testes automatizados de comportamento de sessao e permissoes</li>
+<li>documentacao tecnica complementar de APIs e contratos</li>
+</ul>
+</body>
+</html>

@@ -4,9 +4,15 @@ import { useAuth } from './useAuth';
 
 type RequireRoleProps = {
   allowedRoles: UserRole[];
+  redirectTo?: string;
+  forbiddenMessage?: string;
 };
 
-export function RequireRole({ allowedRoles }: RequireRoleProps) {
+export function RequireRole({
+  allowedRoles,
+  redirectTo = '/app',
+  forbiddenMessage = 'Sem permissao para acessar esta area.',
+}: RequireRoleProps) {
   const { user } = useAuth();
 
   if (!user) {
@@ -14,7 +20,7 @@ export function RequireRole({ allowedRoles }: RequireRoleProps) {
   }
 
   if (!allowedRoles.includes(user.role)) {
-    return <Navigate to="/app/usuarios" state={{ forbidden: true }} replace />;
+    return <Navigate to={redirectTo} state={{ forbidden: true, forbiddenMessage }} replace />;
   }
 
   return <Outlet />;

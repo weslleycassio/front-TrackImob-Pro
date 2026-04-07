@@ -1,0 +1,16 @@
+export const crmEndpoints = {
+  assignableUsers: '/crm/users/assignable',
+  pipelines: '/crm/pipelines',
+  activePipeline: '/crm/pipelines/active',
+  pipeline: (pipelineId: string | number) => `/crm/pipelines/${pipelineId}`,
+  stages: '/crm/stages',
+  stage: (stageId: string | number) => `/crm/stages/${stageId}`,
+  reorderStages: '/crm/stages/reorder',
+  leads: '/crm/leads',
+  lead: (leadId: string | number) => `/crm/leads/${leadId}`,
+  leadStage: (leadId: string | number) => `/crm/leads/${leadId}/stage`,
+  leadResponsaveis: (leadId: string | number) => `/crm/leads/${leadId}/responsaveis`,
+  moveLead: '/crm/leads/move',
+  contacts: '/crm/contacts',
+  contact: (contactId: string | number) => `/crm/contacts/${contactId}`,
+};

@@ -50,7 +50,9 @@ export function ListUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [error, setError] = useState<string | null>(
-    location.state && (location.state as { forbidden?: boolean }).forbidden ? 'Sem permissao para acessar usuarios.' : null,
+    location.state && (location.state as { forbidden?: boolean; forbiddenMessage?: string }).forbidden
+      ? (location.state as { forbiddenMessage?: string }).forbiddenMessage ?? 'Sem permissao para acessar usuarios.'
+      : null,
   );
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);

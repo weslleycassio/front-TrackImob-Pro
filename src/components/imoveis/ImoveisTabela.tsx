@@ -1,18 +1,18 @@
-import type { Imovel } from '../../services/imoveisService';
+import type { InternalImovel } from '../../services/imoveisService';
 import { ImoveisCard } from './ImoveisCard';
 
 type ImoveisTabelaProps = {
-  imoveis: Imovel[];
+  imoveis: InternalImovel[];
   formatCurrency: (value: number) => string;
   formatDate: (date?: string) => string;
-  canEdit: (imovel: Imovel) => boolean;
-  canActivate: (imovel: Imovel) => boolean;
-  canInativar: (imovel: Imovel) => boolean;
+  canEdit: (imovel: InternalImovel) => boolean;
+  canActivate: (imovel: InternalImovel) => boolean;
+  canInativar: (imovel: InternalImovel) => boolean;
   activatingImovelId?: string | number | null;
-  onVisualizar: (imovel: Imovel) => void;
-  onEditar: (imovel: Imovel) => void;
-  onAtivar: (imovel: Imovel) => void;
-  onInativar: (imovel: Imovel) => void;
+  onVisualizar: (imovel: InternalImovel) => void;
+  onEditar: (imovel: InternalImovel) => void;
+  onAtivar: (imovel: InternalImovel) => void;
+  onInativar: (imovel: InternalImovel) => void;
 };
 
 export function ImoveisTabela({

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { getDadosCaptacaoImovel, type DadosCaptacaoImovel } from '../../services/imoveisService';
-import { toFriendlyError } from '../../utils/errorMessages';
+import { toImovelActionError } from '../../utils/errorMessages';
 
 type ImovelMidiasExternasSheetProps = {
   imovelId: string | number;
   isOpen: boolean;
   onClose: () => void;
+  canViewDadosCaptacao: boolean;
   linkExternoFotos?: string | null;
   linkExternoVideos?: string | null;
 };
@@ -61,6 +62,7 @@ export function ImovelMidiasExternasSheet({
   imovelId,
   isOpen,
   onClose,
+  canViewDadosCaptacao,
   linkExternoFotos,
   linkExternoVideos,
 }: ImovelMidiasExternasSheetProps) {
@@ -88,6 +90,14 @@ export function ImovelMidiasExternasSheet({
   }, [isOpen, onClose]);
 
   useEffect(() => {
+    if (!canViewDadosCaptacao) {
+      setDadosCaptacao(null);
+      setDadosCaptacaoError(null);
+      setShouldShowDadosCaptacao(false);
+      setIsLoadingDadosCaptacao(false);
+      return;
+    }
+
     if (!isOpen) {
       return;
     }
@@ -116,12 +126,6 @@ export function ImovelMidiasExternasSheet({
 
         setDadosCaptacao(null);
 
-        if (axios.isAxiosError(error) && error.response?.status === 403) {
-          setDadosCaptacaoError(null);
-          setShouldShowDadosCaptacao(false);
-          return;
-        }
-
         if (axios.isAxiosError(error) && error.response?.status === 404) {
           setDadosCaptacaoError(null);
           setShouldShowDadosCaptacao(true);
@@ -129,7 +133,7 @@ export function ImovelMidiasExternasSheet({
         }
 
         setShouldShowDadosCaptacao(true);
-        setDadosCaptacaoError(toFriendlyError(error, 'Nao foi possivel carregar os dados da captacao.'));
+        setDadosCaptacaoError(toImovelActionError(error, 'Nao foi possivel carregar os dados da captacao.'));
       } finally {
         if (isMounted) {
           setIsLoadingDadosCaptacao(false);
@@ -142,7 +146,7 @@ export function ImovelMidiasExternasSheet({
     return () => {
       isMounted = false;
     };
-  }, [imovelId, isOpen]);
+  }, [canViewDadosCaptacao, imovelId, isOpen]);
 
   return (
     <>
@@ -190,7 +194,7 @@ export function ImovelMidiasExternasSheet({
           </section>
         )}
 
-        {shouldShowDadosCaptacao && (
+        {canViewDadosCaptacao && shouldShowDadosCaptacao && (
           <section className="right-side-sheet-section">
             <h3>Dados da captacao</h3>
 

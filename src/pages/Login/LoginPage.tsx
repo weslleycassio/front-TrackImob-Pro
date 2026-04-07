@@ -22,7 +22,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { clearLogoutReason, login, logoutReason } = useAuth();
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -33,6 +33,17 @@ export function LoginPage() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+
+  const sessionMessage =
+    logoutReason === 'expired'
+      ? 'Sua sessao expirou. Entre novamente para continuar.'
+      : logoutReason === 'inactive'
+        ? 'Sua sessao foi encerrada por inatividade.'
+        : logoutReason === 'unauthorized'
+          ? 'Sua autenticacao nao e mais valida. Entre novamente.'
+          : logoutReason === 'sync'
+            ? 'Sua sessao foi encerrada em outra aba.'
+            : null;
 
   const onSubmit = async (data: LoginFormData) => {
     setGlobalError(null);
@@ -51,8 +62,16 @@ export function LoginPage() {
       <Card
         className="auth-card auth-card--compact"
         title="Entrar"
-        subtitle={`Acesse o ${APP_NAME} com segurança e acompanhe sua operação imobiliária em tempo real.`}
+        subtitle={`Acesse o ${APP_NAME} com seguranca e acompanhe sua operacao imobiliaria em tempo real.`}
       >
+        {sessionMessage ? (
+          <div className="global-success">
+            <span>{sessionMessage}</span>
+            <button type="button" className="link-button" onClick={clearLogoutReason}>
+              Fechar
+            </button>
+          </div>
+        ) : null}
         {globalError ? <div className="global-error">{globalError}</div> : null}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="auth-form">
@@ -91,10 +110,6 @@ export function LoginPage() {
             {isSubmitting ? 'Entrando...' : 'Entrar'}
           </Button>
         </form>
-
-        <p className="auth-helper-text">
-          Primeira vez no {APP_NAME}? <Link to="/register">Cadastre sua imobiliária</Link>
-        </p>
       </Card>
     </AuthLayout>
   );
