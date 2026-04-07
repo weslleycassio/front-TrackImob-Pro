@@ -1,5 +1,5 @@
 import { AxiosError } from 'axios';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Download } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { EntityId } from '../../api/types';
 import { useAuth } from '../../auth/useAuth';
@@ -26,6 +26,7 @@ import {
 } from '../../services/crmService';
 import type { CrmAssignableUser, CrmLead, CrmLeadStageSummary, CrmPipelineStage } from '../../types/crm';
 import { toFriendlyError } from '../../utils/errorMessages';
+import { exportCrmContactsXls } from '../../utils/exportCrmContactsXls';
 
 type FeedbackToastState = {
   title: string;
@@ -146,6 +147,7 @@ export function CRMContactsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [feedback, setFeedback] = useState<FeedbackToastState | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [users, setUsers] = useState<CrmAssignableUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -511,6 +513,35 @@ export function CRMContactsPage() {
     window.open('/app/crm/quadro', '_blank', 'noopener,noreferrer');
   };
 
+  const handleExportContacts = () => {
+    if (loading || error || filteredLeads.length === 0) {
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      exportCrmContactsXls(filteredLeads, {
+        searchTerm: deferredSearchTerm.trim(),
+      });
+      setFeedback({
+        title: 'Exportacao concluida',
+        description: normalizedSearch
+          ? 'O arquivo XLS com os contatos filtrados foi gerado com sucesso.'
+          : 'O arquivo XLS com os contatos visiveis foi gerado com sucesso.',
+        variant: 'success',
+      });
+    } catch (exportError) {
+      setFeedback({
+        title: 'Nao foi possivel exportar',
+        description: toFriendlyError(exportError, 'Tente novamente em instantes para gerar o arquivo XLS.'),
+        variant: 'error',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <main className="content-page">
       <PageHeader
@@ -565,9 +596,19 @@ export function CRMContactsPage() {
             <strong>{normalizedSearch ? `Filtrando por "${deferredSearchTerm.trim()}"` : 'Mostrando todos os contatos comerciais'}</strong>
           </div>
 
-          <Button variant="secondary" onClick={() => void loadLeads()} disabled={loading}>
-            Atualizar
-          </Button>
+          <div className="page-header__button-group">
+            <Button
+              variant="secondary"
+              icon={<Download size={16} aria-hidden="true" />}
+              onClick={handleExportContacts}
+              disabled={loading || Boolean(error) || filteredLeads.length === 0 || isExporting}
+            >
+              {isExporting ? 'Exportando...' : 'Exportar XLS'}
+            </Button>
+            <Button variant="secondary" onClick={() => void loadLeads()} disabled={loading || isExporting}>
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {error ? <div className="global-error crm-leads-error-block">{error}</div> : null}
