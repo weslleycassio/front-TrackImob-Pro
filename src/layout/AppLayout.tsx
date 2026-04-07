@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { getMinhaImobiliariaRequest } from '../api/imobiliariasService';
 import { changePasswordRequest, updateLoggedUserRequest } from '../api/usersService';
-import type { AlterarSenhaPayload, ImobiliariaSummary, UpdateMeRequest } from '../api/types';
-import { saveStoredUser } from '../auth/storage';
+import type { AlterarSenhaPayload, UpdateMeRequest } from '../api/types';
 import { useAuth } from '../auth/useAuth';
+import { useImobiliaria } from '../hooks/useImobiliaria';
 import { APP_NAME, setDocumentTitle } from '../config/app';
 import { AppFooter } from '../components/AppFooter';
 import { AppHeader } from '../components/AppHeader';
@@ -27,10 +26,7 @@ const initialPasswordForm: AlterarSenhaPayload = {
 export function AppLayout() {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
-  const [imobiliaria, setImobiliaria] = useState<ImobiliariaSummary | null>(
-    user?.imobiliariaNome ? { nome: user.imobiliariaNome, logoUrl: null } : null,
-  );
-  const [isLoadingImobiliaria, setIsLoadingImobiliaria] = useState(!user?.imobiliariaNome);
+  const { imobiliaria, loading: isLoadingImobiliaria } = useImobiliaria();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalMode, setProfileModalMode] = useState<ProfileModalMode>('perfil');
@@ -61,47 +57,7 @@ export function AppLayout() {
   useEffect(() => {
     if (!user) {
       navigate('/login', { replace: true });
-      return;
     }
-
-    if (user.imobiliariaNome) {
-      setImobiliaria((current) => ({
-        nome: user.imobiliariaNome ?? current?.nome ?? APP_NAME,
-        logoUrl: current?.logoUrl ?? null,
-      }));
-      setIsLoadingImobiliaria(false);
-    } else {
-      setImobiliaria(null);
-      setIsLoadingImobiliaria(true);
-    }
-
-    let isMounted = true;
-
-    const loadImobiliaria = async () => {
-      try {
-        const data = await getMinhaImobiliariaRequest(user.imobiliariaId);
-        if (!isMounted) {
-          return;
-        }
-
-        setImobiliaria(data);
-        setIsLoadingImobiliaria(false);
-        saveStoredUser({ ...user, imobiliariaNome: data.nome });
-      } catch {
-        if (!isMounted) {
-          return;
-        }
-
-        setImobiliaria(user.imobiliariaNome ? { nome: user.imobiliariaNome, logoUrl: null } : null);
-        setIsLoadingImobiliaria(false);
-      }
-    };
-
-    loadImobiliaria();
-
-    return () => {
-      isMounted = false;
-    };
   }, [navigate, user]);
 
   const handleLogout = () => {
@@ -172,13 +128,6 @@ export function AppLayout() {
       };
 
       updateUser(nextUser);
-
-      if (nextUser.imobiliariaNome) {
-        setImobiliaria((current) => ({
-          nome: nextUser.imobiliariaNome ?? current?.nome ?? APP_NAME,
-          logoUrl: current?.logoUrl ?? null,
-        }));
-      }
 
       setProfileSuccess('Perfil atualizado com sucesso no sistema.');
       setIsProfileModalOpen(false);
