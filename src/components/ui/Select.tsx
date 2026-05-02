@@ -1,7 +1,7 @@
 import { forwardRef, type ReactNode, type SelectHTMLAttributes } from 'react';
 
 type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
-  label?: string;
+  label?: ReactNode;
   error?: string;
   hint?: string;
   children: ReactNode;

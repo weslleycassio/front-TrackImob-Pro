@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'CORRETOR';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'CORRETOR';
 
 export type EntityId = string | number;
 
@@ -6,6 +6,47 @@ export type ImobiliariaSummary = {
   id?: EntityId;
   nome: string;
   logoUrl?: string | null;
+};
+
+export type AdminImobiliaria = {
+  id: EntityId;
+  nome: string;
+  telefone?: string | null;
+  email?: string | null;
+  cnpj?: string | null;
+  ativa: boolean;
+  usuariosAtivos: number;
+  limiteUsuarios: number | null;
+  whatsappConfig?: {
+    groupId: string | null;
+    groupName: string | null;
+    enabled: boolean;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type UpdateAdminImobiliariaConfigPayload = {
+  limiteUsuarios?: number | null;
+  ativa?: boolean;
+};
+
+export type CreateAdminImobiliariaRequest = {
+  imobiliaria: {
+    nome: string;
+    telefone: string;
+    email?: string;
+    cnpj?: string;
+  };
+  admin: {
+    nome: string;
+    telefone: string;
+    email: string;
+    password: string;
+  };
+  configuracao?: {
+    limiteUsuarios?: number | null;
+  };
 };
 
 export type User = {
@@ -17,7 +58,7 @@ export type User = {
   ativo?: boolean;
   status?: string;
   createdAt?: string;
-  imobiliariaId: EntityId;
+  imobiliariaId?: EntityId;
   imobiliariaNome?: string;
 };
 

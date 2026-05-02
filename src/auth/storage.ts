@@ -1,4 +1,5 @@
 import type { User } from '../api/types';
+import { clearStoredLastActivityAt } from './session';
 
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
@@ -38,4 +39,5 @@ export function clearStoredUser() {
 export function clearAuthStorage() {
   clearStoredToken();
   clearStoredUser();
+  clearStoredLastActivityAt();
 }

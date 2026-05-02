@@ -185,7 +185,7 @@ export function AppLayout() {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onLogout={handleLogout}
-        companyName={imobiliaria?.nome}
+        companyName={user?.role === 'SUPER_ADMIN' ? APP_NAME : imobiliaria?.nome}
         companyLogoUrl={imobiliaria?.logoUrl}
         isCompanyLoading={isLoadingImobiliaria}
       />

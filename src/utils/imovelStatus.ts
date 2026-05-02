@@ -1,4 +1,4 @@
-import type { Imovel, MotivoInativacaoImovel } from '../services/imoveisService';
+import type { InternalImovel, MotivoInativacaoImovel } from '../services/imoveisService';
 
 const motivosPermitidosParaAtivacao = new Set<MotivoInativacaoImovel>([
   'DESISTIU_DA_VENDA',
@@ -6,7 +6,7 @@ const motivosPermitidosParaAtivacao = new Set<MotivoInativacaoImovel>([
   'OUTRO',
 ]);
 
-export function canActivateImovel(imovel: Pick<Imovel, 'status' | 'motivoInativacao'> | null | undefined) {
+export function canActivateImovel(imovel: Pick<InternalImovel, 'status' | 'motivoInativacao'> | null | undefined) {
   if (!imovel) {
     return false;
   }

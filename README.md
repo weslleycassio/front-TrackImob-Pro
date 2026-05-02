@@ -1,8 +1,8 @@
 # Front TrackImob Pro
 
-Front-end em React + TypeScript (Vite) para escopo multi-imobiliária.
+Front-end em React + TypeScript (Vite) para operacao multi-imobiliaria.
 
-## Configuração
+## Configuracao
 
 1. Crie um `.env.local` na raiz:
 
@@ -10,7 +10,7 @@ Front-end em React + TypeScript (Vite) para escopo multi-imobiliária.
 VITE_API_URL=http://localhost:3000
 ```
 
-> Também há fallback para `REACT_APP_API_URL`.
+Tambem ha fallback para `REACT_APP_API_URL`.
 
 ## Rodar projeto
 
@@ -19,9 +19,14 @@ npm install
 npm run dev
 ```
 
+## Documentacao funcional
+
+A documentacao funcional atual do projeto esta em [docs/documentacao-funcional.md](./docs/documentacao-funcional.md).
+
 ## Rotas principais
 
-- `/register`: cadastro da imobiliária + admin
-- `/login`: autenticação
-- `/app`: área privada com layout e sidebar
-- `/app/users`: listagem/cadastro de usuários (cadastro apenas ADMIN)
+- `/register`: cadastro da imobiliaria + admin inicial
+- `/login`: autenticacao
+- `/app`: dashboard e area privada
+- `/imoveis`: consulta da carteira
+- `/app/usuarios`: listagem da equipe

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getUsersRequest } from '../../api/usersService';
 import { useAuth } from '../../auth/useAuth';
 import { useImobiliaria } from '../../hooks/useImobiliaria';
@@ -71,11 +71,25 @@ function getMetricChartBars(key: keyof DashboardMetrics, metrics: DashboardMetri
 }
 
 export function AppHomePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { imobiliaria, loading: isLoadingImobiliaria } = useImobiliaria();
   const [metrics, setMetrics] = useState<DashboardMetrics>(initialMetrics);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [forbiddenMessage, setForbiddenMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const locationState = location.state as { forbiddenMessage?: string } | null;
+
+    if (!locationState?.forbiddenMessage) {
+      return;
+    }
+
+    setForbiddenMessage(locationState.forbiddenMessage);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -135,6 +149,7 @@ export function AppHomePage() {
         }
       />
 
+      {forbiddenMessage ? <div className="global-error">{forbiddenMessage}</div> : null}
       {error ? <div className="global-error">{error}</div> : null}
 
       <section className="dashboard-metrics-grid">
