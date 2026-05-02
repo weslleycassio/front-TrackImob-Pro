@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { loginRequest } from '../../api/authService';
 import { useAuth } from '../../auth/useAuth';
@@ -21,10 +21,12 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
+  const location = useLocation();
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { clearLogoutReason, login, logoutReason } = useAuth();
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const isSuperAdminLogin = location.pathname === '/configs-admin/login';
 
   const {
     register,
@@ -34,13 +36,24 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
+  const sessionMessage =
+    logoutReason === 'expired'
+      ? 'Sua sessao expirou. Entre novamente para continuar.'
+      : logoutReason === 'inactive'
+        ? 'Sua sessao foi encerrada por inatividade.'
+        : logoutReason === 'unauthorized'
+          ? 'Sua autenticacao nao e mais valida. Entre novamente.'
+          : logoutReason === 'sync'
+            ? 'Sua sessao foi encerrada em outra aba.'
+            : null;
+
   const onSubmit = async (data: LoginFormData) => {
     setGlobalError(null);
 
     try {
       const response = await loginRequest(data);
       login(response.token, response.user);
-      navigate('/app', { replace: true });
+      navigate(response.user.role === 'SUPER_ADMIN' ? '/configs-admin' : '/app', { replace: true });
     } catch (error) {
       setGlobalError(toFriendlyError(error, `Nao foi possivel entrar no ${APP_NAME}.`));
     }
@@ -50,9 +63,21 @@ export function LoginPage() {
     <AuthLayout>
       <Card
         className="auth-card auth-card--compact"
-        title="Entrar"
-        subtitle={`Acesse o ${APP_NAME} com segurança e acompanhe sua operação imobiliária em tempo real.`}
+        title={isSuperAdminLogin ? 'Entrar como super admin' : 'Entrar'}
+        subtitle={
+          isSuperAdminLogin
+            ? `Use uma conta SUPER_ADMIN para acessar as configuracoes administrativas do ${APP_NAME}.`
+            : `Acesse o ${APP_NAME} com seguranca e acompanhe sua operacao imobiliaria em tempo real.`
+        }
       >
+        {sessionMessage ? (
+          <div className="global-success">
+            <span>{sessionMessage}</span>
+            <button type="button" className="link-button" onClick={clearLogoutReason}>
+              Fechar
+            </button>
+          </div>
+        ) : null}
         {globalError ? <div className="global-error">{globalError}</div> : null}
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="auth-form">
@@ -91,10 +116,6 @@ export function LoginPage() {
             {isSubmitting ? 'Entrando...' : 'Entrar'}
           </Button>
         </form>
-
-        <p className="auth-helper-text">
-          Primeira vez no {APP_NAME}? <Link to="/register">Cadastre sua imobiliária</Link>
-        </p>
       </Card>
     </AuthLayout>
   );

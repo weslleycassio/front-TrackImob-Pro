@@ -10,14 +10,15 @@ import { ImovelCarousel } from '../../components/imoveis/ImovelCarousel';
 import { Spinner } from '../../components/ui/Spinner';
 import {
   ativarImovel,
-  getImovelById,
+  getImovelWhatsAppNotificationMessage,
+  getInternalImovelById,
   inativarImovel,
-  type Imovel,
+  type InternalImovel,
   type InativarImovelPayload,
   motivoInativacaoImovelOptions,
 } from '../../services/imoveisService';
-import { toFriendlyError } from '../../utils/errorMessages';
-import { canEditImovel } from '../../utils/imovelPermissions';
+import { toFriendlyError, toImovelActionError } from '../../utils/errorMessages';
+import { canEditImovel, canManageImovel, canViewDadosCaptacaoImovel } from '../../utils/imovelPermissions';
 import { canActivateImovel } from '../../utils/imovelStatus';
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
@@ -46,7 +47,7 @@ export function VisualizarImovelPage() {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [imovel, setImovel] = useState<Imovel | null>(null);
+  const [imovel, setImovel] = useState<InternalImovel | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -64,22 +65,16 @@ export function VisualizarImovelPage() {
     typeof imovel?.preco === 'number' && Number.isFinite(imovel.preco) ? currencyFormatter.format(imovel.preco) : '-';
   const corretorCaptadorNome = imovel?.corretorCaptador?.nome || '-';
   const canEditarImovel = useMemo(() => canEditImovel(user, imovel), [imovel, user]);
-  const canInativarImovel = useMemo(() => {
-    if (!user || !imovel) {
-      return false;
-    }
-
-    if (user.role === 'ADMIN') {
-      return true;
-    }
-
-    if (imovel.responsavelId === undefined || imovel.responsavelId === null) {
-      return false;
-    }
-
-    return String(imovel.responsavelId) === String(user.id);
-  }, [imovel, user]);
+  const canInativarImovel = useMemo(() => canManageImovel(user, imovel), [imovel, user]);
   const canAtivarImovel = useMemo(() => canInativarImovel && canActivateImovel(imovel), [imovel, canInativarImovel]);
+  const canVisualizarDadosCaptacao = useMemo(() => canViewDadosCaptacaoImovel(user, imovel), [imovel, user]);
+  const hasMidiasExternas = useMemo(
+    () =>
+      [imovel?.linkExternoFotos, imovel?.linkExternoVideos].some(
+        (value) => typeof value === 'string' && value.trim().length > 0,
+      ),
+    [imovel?.linkExternoFotos, imovel?.linkExternoVideos],
+  );
   const motivoInativacaoLabel =
     (typeof imovel?.motivoInativacao === 'string' ? motivoInativacaoLabels.get(imovel.motivoInativacao) : null) ??
     getDisplayValue(imovel?.motivoInativacao);
@@ -100,7 +95,7 @@ export function VisualizarImovelPage() {
     setError(null);
 
     try {
-      const response = await getImovelById(id);
+      const response = await getInternalImovelById(id);
       setImovel(response);
     } catch (apiError) {
       if (axios.isAxiosError(apiError) && apiError.response?.status === 404) {
@@ -187,16 +182,17 @@ export function VisualizarImovelPage() {
     setIsInactivating(true);
 
     try {
-      await inativarImovel(imovel.id, payload);
-      setSuccessMessage('Imovel inativado com sucesso.');
+      const inactivationResponse = await inativarImovel(imovel.id, payload);
+      const whatsappNotificationMessage = getImovelWhatsAppNotificationMessage(inactivationResponse);
+      setSuccessMessage(
+        whatsappNotificationMessage
+          ? `Imovel inativado com sucesso. ${whatsappNotificationMessage}`
+          : 'Imovel inativado com sucesso.',
+      );
       setIsInactivationModalOpen(false);
       await loadImovel();
     } catch (apiError) {
-      if (axios.isAxiosError(apiError) && apiError.response?.status === 403) {
-        setInactivationError('Voce nao tem permissao para inativar este imovel.');
-      } else {
-        setInactivationError(toFriendlyError(apiError, 'Nao foi possivel inativar o imovel. Tente novamente.'));
-      }
+      setInactivationError(toImovelActionError(apiError, 'Nao foi possivel inativar o imovel. Tente novamente.'));
     } finally {
       setIsInactivating(false);
     }
@@ -216,7 +212,7 @@ export function VisualizarImovelPage() {
       setSuccessMessage('Imovel ativado com sucesso.');
       await loadImovel();
     } catch (apiError) {
-      setInactivationError(toFriendlyError(apiError, 'Nao foi possivel ativar o imovel. Tente novamente.'));
+      setInactivationError(toImovelActionError(apiError, 'Nao foi possivel ativar o imovel. Tente novamente.'));
     } finally {
       setIsActivating(false);
     }
@@ -271,9 +267,11 @@ export function VisualizarImovelPage() {
                 {isActivating ? 'Ativando...' : 'Ativar'}
               </button>
             )}
-            <button type="button" className="secondary" onClick={openMidiasExternas}>
-              {'Informa\u00e7\u00f5es extras'}
-            </button>
+            {(hasMidiasExternas || canVisualizarDadosCaptacao) && (
+              <button type="button" className="secondary" onClick={openMidiasExternas}>
+                {'Informa\u00e7\u00f5es extras'}
+              </button>
+            )}
             {canInativarImovel && !isInativo && (
               <button
                 type="button"
@@ -432,6 +430,7 @@ export function VisualizarImovelPage() {
         imovelId={imovel.id}
         isOpen={isMidiasExternasOpen}
         onClose={closeMidiasExternas}
+        canViewDadosCaptacao={canVisualizarDadosCaptacao}
         linkExternoFotos={imovel.linkExternoFotos}
         linkExternoVideos={imovel.linkExternoVideos}
       />

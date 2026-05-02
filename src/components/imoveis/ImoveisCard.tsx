@@ -1,20 +1,20 @@
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import type { Imovel } from '../../services/imoveisService';
+import type { InternalImovel } from '../../services/imoveisService';
 import { ImovelCarousel } from './ImovelCarousel';
 
 type ImoveisCardProps = {
-  imovel: Imovel;
+  imovel: InternalImovel;
   formatCurrency: (value: number) => string;
   formatDate: (date?: string) => string;
   canEdit: boolean;
   canActivate: boolean;
   canInativar: boolean;
   isActivating: boolean;
-  onVisualizar: (imovel: Imovel) => void;
-  onEditar: (imovel: Imovel) => void;
-  onAtivar: (imovel: Imovel) => void;
-  onInativar: (imovel: Imovel) => void;
+  onVisualizar: (imovel: InternalImovel) => void;
+  onEditar: (imovel: InternalImovel) => void;
+  onAtivar: (imovel: InternalImovel) => void;
+  onInativar: (imovel: InternalImovel) => void;
 };
 
 const getStatusVariant = (status?: string) => (String(status).toUpperCase() === 'ATIVO' ? 'success' : 'danger');

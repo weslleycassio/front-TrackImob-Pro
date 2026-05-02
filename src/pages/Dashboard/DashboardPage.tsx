@@ -53,7 +53,7 @@ export function DashboardPage() {
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h2>Painel inicial</h2>
-          <button className="secondary" onClick={logout} type="button">
+          <button className="secondary" onClick={() => logout()} type="button">
             Sair
           </button>
         </div>
