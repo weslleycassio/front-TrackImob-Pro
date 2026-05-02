@@ -24,7 +24,7 @@ import {
   updateCrmLead,
   updateCrmLeadResponsaveis,
 } from '../../services/crmService';
-import type { CrmAssignableUser, CrmLead, CrmLeadStageSummary, CrmPipelineStage } from '../../types/crm';
+import { crmLeadAssuntoLabels, type CrmAssignableUser, type CrmLead, type CrmLeadAssunto, type CrmLeadStageSummary, type CrmPipelineStage } from '../../types/crm';
 import { toFriendlyError } from '../../utils/errorMessages';
 import { exportCrmContactsXls } from '../../utils/exportCrmContactsXls';
 
@@ -100,6 +100,10 @@ function getLeadResponsavelLabel(lead: CrmLead) {
   return lead.responsaveis[0]?.nome ?? lead.createdByUser?.nome ?? 'Definido automaticamente';
 }
 
+function getLeadAssuntoLabel(lead: CrmLead) {
+  return lead.assunto ? crmLeadAssuntoLabels[lead.assunto] : 'Sem assunto';
+}
+
 function parseOptionalNumber(value?: string) {
   if (!value || value.trim().length === 0) {
     return undefined;
@@ -119,6 +123,8 @@ function toLeadStageSummary(stage: CrmPipelineStage): CrmLeadStageSummary {
     ordem: stage.ordem,
     cor: stage.cor,
     tipo: stage.tipo,
+    setor: stage.setor,
+    rolesPermitidas: stage.rolesPermitidas,
     ativa: stage.ativa,
   };
 }
@@ -184,6 +190,8 @@ export function CRMContactsPage() {
         lead.nome,
         lead.email ?? '',
         lead.telefone ?? '',
+        lead.assunto ?? '',
+        lead.assunto ? crmLeadAssuntoLabels[lead.assunto] : '',
         lead.origem ?? '',
         lead.pipeline?.nome ?? '',
         lead.stage?.nome ?? '',
@@ -471,6 +479,7 @@ export function CRMContactsPage() {
         nome: values.nome.trim(),
         telefone: values.telefone.replace(/\D/g, ''),
         email: values.email?.trim() || null,
+        assunto: values.assunto as CrmLeadAssunto,
         origem: values.origem.trim(),
         financialProfile: hadFinancialProfile || hasFinancialProfile ? nextFinancialProfile : undefined,
       });
@@ -579,14 +588,14 @@ export function CRMContactsPage() {
         subtitle={
           !loading && !error
             ? `${filteredLeads.length} contato(s) visivel(is)${normalizedSearch ? ' com o filtro atual.' : '.'}`
-            : 'Busque por nome, telefone, e-mail, origem, etapa ou responsavel para localizar contatos mais rapido.'
+            : 'Busque por nome, telefone, e-mail, assunto, origem, etapa ou responsavel para localizar contatos mais rapido.'
         }
       >
         <div className="crm-contacts-toolbar">
           <Input
             id="crm-contacts-search-list"
             label="Buscar contato"
-            placeholder="Nome, telefone, e-mail, origem ou responsavel"
+            placeholder="Nome, telefone, e-mail, assunto, origem ou responsavel"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
           />
@@ -632,7 +641,7 @@ export function CRMContactsPage() {
         {!loading && !error && leads.length > 0 && filteredLeads.length === 0 ? (
           <EmptyState
             title="Nenhum contato corresponde a busca"
-            description="Tente outro nome, telefone, e-mail, origem, etapa ou responsavel para localizar um contato."
+            description="Tente outro nome, telefone, e-mail, assunto, origem, etapa ou responsavel para localizar um contato."
           />
         ) : null}
 
@@ -644,6 +653,7 @@ export function CRMContactsPage() {
                   <th>Nome</th>
                   <th>Telefone</th>
                   <th>E-mail</th>
+                  <th>Assunto</th>
                   <th>Origem</th>
                   <th>Etapa atual</th>
                   <th>Responsavel</th>
@@ -661,6 +671,9 @@ export function CRMContactsPage() {
                     </td>
                     <td>{formatPhone(lead.telefone)}</td>
                     <td>{lead.email || '-'}</td>
+                    <td>
+                      <Badge variant="neutral">{getLeadAssuntoLabel(lead)}</Badge>
+                    </td>
                     <td>
                       <Badge variant="info">{lead.origem || 'Sem origem'}</Badge>
                     </td>

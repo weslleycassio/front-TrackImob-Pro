@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { loginRequest } from '../../api/authService';
 import { useAuth } from '../../auth/useAuth';
@@ -21,10 +21,12 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { clearLogoutReason, login, logoutReason } = useAuth();
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const isSuperAdminLogin = location.pathname === '/configs-admin/login';
 
   const {
     register,
@@ -51,7 +53,7 @@ export function LoginPage() {
     try {
       const response = await loginRequest(data);
       login(response.token, response.user);
-      navigate('/app', { replace: true });
+      navigate(response.user.role === 'SUPER_ADMIN' ? '/configs-admin' : '/app', { replace: true });
     } catch (error) {
       setGlobalError(toFriendlyError(error, `Nao foi possivel entrar no ${APP_NAME}.`));
     }
@@ -61,8 +63,12 @@ export function LoginPage() {
     <AuthLayout>
       <Card
         className="auth-card auth-card--compact"
-        title="Entrar"
-        subtitle={`Acesse o ${APP_NAME} com seguranca e acompanhe sua operacao imobiliaria em tempo real.`}
+        title={isSuperAdminLogin ? 'Entrar como super admin' : 'Entrar'}
+        subtitle={
+          isSuperAdminLogin
+            ? `Use uma conta SUPER_ADMIN para acessar as configuracoes administrativas do ${APP_NAME}.`
+            : `Acesse o ${APP_NAME} com seguranca e acompanhe sua operacao imobiliaria em tempo real.`
+        }
       >
         {sessionMessage ? (
           <div className="global-success">

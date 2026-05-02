@@ -18,6 +18,7 @@ import { Toast } from '../../components/ui/Toast';
 import { APP_NAME } from '../../config/app';
 
 const roleLabel: Record<UserRole, string> = {
+  SUPER_ADMIN: 'Super administrador',
   ADMIN: 'Administrador',
   CORRETOR: 'Corretor',
 };

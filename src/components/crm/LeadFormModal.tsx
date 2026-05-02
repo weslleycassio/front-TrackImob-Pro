@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import type { EntityId } from '../../api/types';
-import type { CrmAssignableUser, CrmPipeline, CrmPipelineDetails, CrmPipelineStage } from '../../types/crm';
+import { crmLeadAssuntoOptions, type CrmAssignableUser, type CrmPipeline, type CrmPipelineDetails, type CrmPipelineStage } from '../../types/crm';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
@@ -39,6 +39,7 @@ const leadSchema = z.object({
     .min(1, 'Informe o telefone do lead')
     .refine((value) => onlyDigits(value).length >= 10, 'Informe um telefone valido'),
   email: z.union([z.literal(''), z.string().trim().email('Informe um e-mail valido')]).optional(),
+  assunto: z.string().trim().min(1, 'Selecione o assunto do lead'),
   origem: z.string().trim().min(1, 'Informe a origem do lead'),
   informacoesAdicionais: z.string().trim().max(2000, 'Use no maximo 2000 caracteres').optional(),
   pipelineId: z.string().min(1, 'Pipeline indisponivel para cadastrar o lead'),
@@ -120,6 +121,7 @@ export function LeadFormModal({
       nome: '',
       telefone: '',
       email: '',
+      assunto: '',
       origem: '',
       informacoesAdicionais: '',
       pipelineId: pipeline ? String(pipeline.id) : '',
@@ -146,6 +148,7 @@ export function LeadFormModal({
       nome: '',
       telefone: '',
       email: '',
+      assunto: '',
       origem: '',
       informacoesAdicionais: '',
       pipelineId: pipeline ? String(pipeline.id) : '',
@@ -297,6 +300,17 @@ export function LeadFormModal({
 
         <div className="crm-form-grid crm-form-grid--two">
           <Input id="crm-lead-email" label="E-mail" error={errors.email?.message} {...register('email')} />
+          <Select id="crm-lead-assunto" label={requiredLabel('Assunto')} error={errors.assunto?.message} {...register('assunto')}>
+            <option value="">Selecione</option>
+            {crmLeadAssuntoOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div className="crm-form-grid">
           <Input
             id="crm-lead-origem"
             label={requiredLabel('Origem')}

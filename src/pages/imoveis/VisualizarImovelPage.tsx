@@ -10,6 +10,7 @@ import { ImovelCarousel } from '../../components/imoveis/ImovelCarousel';
 import { Spinner } from '../../components/ui/Spinner';
 import {
   ativarImovel,
+  getImovelWhatsAppNotificationMessage,
   getInternalImovelById,
   inativarImovel,
   type InternalImovel,
@@ -181,8 +182,13 @@ export function VisualizarImovelPage() {
     setIsInactivating(true);
 
     try {
-      await inativarImovel(imovel.id, payload);
-      setSuccessMessage('Imovel inativado com sucesso.');
+      const inactivationResponse = await inativarImovel(imovel.id, payload);
+      const whatsappNotificationMessage = getImovelWhatsAppNotificationMessage(inactivationResponse);
+      setSuccessMessage(
+        whatsappNotificationMessage
+          ? `Imovel inativado com sucesso. ${whatsappNotificationMessage}`
+          : 'Imovel inativado com sucesso.',
+      );
       setIsInactivationModalOpen(false);
       await loadImovel();
     } catch (apiError) {

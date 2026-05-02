@@ -22,7 +22,7 @@ import {
   updateCrmPipeline,
   updateCrmStage,
 } from '../../services/crmService';
-import type { CrmPipeline, CrmPipelineStage, CrmPipelineStageType } from '../../types/crm';
+import type { CrmPipeline, CrmPipelineStage, CrmPipelineStageType, CrmStageRole, CrmStageSetor } from '../../types/crm';
 import { toFriendlyError } from '../../utils/errorMessages';
 
 type FeedbackToastState = {
@@ -281,6 +281,8 @@ export function CRMConfigPage() {
     ordem: number;
     cor: string;
     tipo: CrmPipelineStageType;
+    setor: string;
+    rolesPermitidas: string[];
     slaHoras?: number;
     ativa: boolean;
   }) => {
@@ -300,6 +302,8 @@ export function CRMConfigPage() {
       ordem: shouldAppendToActiveOrder ? activeStages.length + 1 : values.ordem,
       cor: values.cor,
       tipo: values.tipo,
+      setor: values.setor as CrmStageSetor,
+      rolesPermitidas: values.rolesPermitidas as CrmStageRole[],
       slaHoras: values.slaHoras ?? null,
       ativa: values.ativa,
     };

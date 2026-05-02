@@ -33,7 +33,7 @@ export function ImobiliariaProvider({ children }: ImobiliariaProviderProps) {
   const [loading, setLoading] = useState(Boolean(user));
 
   const refreshImobiliaria = useCallback(async () => {
-    if (!user) {
+    if (!user || user.role === 'SUPER_ADMIN') {
       setImobiliaria(null);
       setLoading(false);
       return null;
@@ -63,7 +63,7 @@ export function ImobiliariaProvider({ children }: ImobiliariaProviderProps) {
   }, [updateUser, user]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || user.role === 'SUPER_ADMIN') {
       setImobiliaria(null);
       setLoading(false);
       return;

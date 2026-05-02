@@ -29,7 +29,15 @@ import {
   updateCrmLead,
   updateCrmLeadResponsaveis,
 } from '../../services/crmService';
-import type { CrmAssignableUser, CrmLead, CrmLeadStageSummary, CrmPipelineDetails, CrmPipelineStage } from '../../types/crm';
+import { crmLeadAssuntoLabels } from '../../types/crm';
+import type {
+  CrmAssignableUser,
+  CrmLead,
+  CrmLeadAssunto,
+  CrmLeadStageSummary,
+  CrmPipelineDetails,
+  CrmPipelineStage,
+} from '../../types/crm';
 import { toFriendlyError } from '../../utils/errorMessages';
 
 type FeedbackToastState = {
@@ -127,6 +135,8 @@ function toLeadStageSummary(stage: CrmPipelineStage): CrmLeadStageSummary {
     ordem: stage.ordem,
     cor: stage.cor,
     tipo: stage.tipo,
+    setor: stage.setor,
+    rolesPermitidas: stage.rolesPermitidas,
     ativa: stage.ativa,
   };
 }
@@ -240,7 +250,15 @@ export function CRMPage({ boardOnly = false }: CRMPageProps) {
     return pipelineLeads.filter((lead) => {
       const matchesSearch =
         normalizedSearchTerm.length === 0 ||
-        [lead.nome, lead.telefone ?? '', lead.origem ?? '', lead.email ?? '', lead.informacoesAdicionais ?? '']
+        [
+          lead.nome,
+          lead.telefone ?? '',
+          lead.assunto ?? '',
+          lead.assunto ? crmLeadAssuntoLabels[lead.assunto] : '',
+          lead.origem ?? '',
+          lead.email ?? '',
+          lead.informacoesAdicionais ?? '',
+        ]
           .join(' ')
           .toLowerCase()
           .includes(normalizedSearchTerm);
@@ -499,6 +517,7 @@ export function CRMPage({ boardOnly = false }: CRMPageProps) {
       const createdLead = await createCrmLead({
         nome: values.nome.trim(),
         telefone: values.telefone.replace(/\D/g, ''),
+        assunto: values.assunto as CrmLeadAssunto,
         origem: values.origem.trim(),
         email: values.email?.trim() || null,
         informacoesAdicionais: values.informacoesAdicionais?.trim() || null,
@@ -554,6 +573,7 @@ export function CRMPage({ boardOnly = false }: CRMPageProps) {
         nome: values.nome.trim(),
         telefone: values.telefone.replace(/\D/g, ''),
         email: values.email?.trim() || null,
+        assunto: values.assunto as CrmLeadAssunto,
         origem: values.origem.trim(),
         financialProfile: hadFinancialProfile || hasFinancialProfile ? nextFinancialProfile : undefined,
       });
@@ -922,7 +942,7 @@ export function CRMPage({ boardOnly = false }: CRMPageProps) {
             <Input
               id="crm-leads-search"
               label="Buscar lead"
-              placeholder="Nome, telefone, origem ou observacao"
+              placeholder="Nome, telefone, assunto, origem ou observacao"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />

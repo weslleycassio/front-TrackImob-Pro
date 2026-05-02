@@ -1,5 +1,21 @@
 import type { EntityId, UserRole } from '../api/types';
 
+export type CrmLeadAssunto = 'COMPRAR' | 'COMPRAR_PLANTA' | 'VENDER' | 'ALUGAR';
+
+export const crmLeadAssuntoOptions: Array<{ value: CrmLeadAssunto; label: string }> = [
+  { value: 'COMPRAR', label: 'Comprar' },
+  { value: 'COMPRAR_PLANTA', label: 'Comprar na planta' },
+  { value: 'VENDER', label: 'Vender' },
+  { value: 'ALUGAR', label: 'Alugar' },
+];
+
+export const crmLeadAssuntoLabels: Record<CrmLeadAssunto, string> = {
+  COMPRAR: 'Comprar',
+  COMPRAR_PLANTA: 'Comprar na planta',
+  VENDER: 'Vender',
+  ALUGAR: 'Alugar',
+};
+
 export type CrmPipelineStageType = 'FRIO' | 'QUENTE' | 'PERDIDO' | 'CONCLUIDO_COM_SUCESSO';
 
 export const crmStageTypeOptions: Array<{ value: CrmPipelineStageType; label: string }> = [
@@ -14,6 +30,40 @@ export const crmStageTypeLabels: Record<CrmPipelineStageType, string> = {
   QUENTE: 'Quente',
   PERDIDO: 'Perdido',
   CONCLUIDO_COM_SUCESSO: 'Concluido com sucesso',
+};
+
+export type CrmStageSetor = 'COMERCIAL' | 'DOCUMENTACAO' | 'MARKETING' | 'CONTRATO';
+
+export const crmStageSetorOptions: Array<{ value: CrmStageSetor; label: string }> = [
+  { value: 'COMERCIAL', label: 'Comercial' },
+  { value: 'DOCUMENTACAO', label: 'Documentacao' },
+  { value: 'MARKETING', label: 'Marketing' },
+  { value: 'CONTRATO', label: 'Contrato' },
+];
+
+export const crmStageSetorLabels: Record<CrmStageSetor, string> = {
+  COMERCIAL: 'Comercial',
+  DOCUMENTACAO: 'Documentacao',
+  MARKETING: 'Marketing',
+  CONTRATO: 'Contrato',
+};
+
+export type CrmStageRole = 'ADMIN' | 'CORRETOR' | 'DOCUMENTISTA' | 'MARKETING' | 'CONTRATO';
+
+export const crmStageRoleOptions: Array<{ value: CrmStageRole; label: string }> = [
+  { value: 'ADMIN', label: 'Administrador' },
+  { value: 'CORRETOR', label: 'Corretor' },
+  { value: 'DOCUMENTISTA', label: 'Documentista' },
+  { value: 'MARKETING', label: 'Marketing' },
+  { value: 'CONTRATO', label: 'Contrato' },
+];
+
+export const crmStageRoleLabels: Record<CrmStageRole, string> = {
+  ADMIN: 'Administrador',
+  CORRETOR: 'Corretor',
+  DOCUMENTISTA: 'Documentista',
+  MARKETING: 'Marketing',
+  CONTRATO: 'Contrato',
 };
 
 export type CrmPipeline = {
@@ -37,6 +87,8 @@ export type CrmPipelineStage = {
   ordem: number;
   cor: string | null;
   tipo: CrmPipelineStageType;
+  setor: CrmStageSetor | null;
+  rolesPermitidas: CrmStageRole[];
   slaHoras: number | null;
   ativa: boolean;
   createdAt?: string;
@@ -82,6 +134,8 @@ export type CrmLeadStageSummary = {
   ordem: number;
   cor: string | null;
   tipo: CrmPipelineStageType;
+  setor: CrmStageSetor | null;
+  rolesPermitidas: CrmStageRole[];
   ativa: boolean;
 };
 
@@ -106,6 +160,7 @@ export type CrmLead = {
   nome: string;
   telefone: string | null;
   email: string | null;
+  assunto: CrmLeadAssunto | null;
   origem: string | null;
   informacoesAdicionais: string | null;
   pipelineId: EntityId;
@@ -133,6 +188,7 @@ export type CrmContactLeadSummary = {
   nome: string;
   telefone: string | null;
   email: string | null;
+  assunto: CrmLeadAssunto | null;
   origem: string | null;
   pipeline?: CrmLeadPipelineSummary | null;
   stage?: CrmLeadStageSummary | null;
@@ -164,6 +220,8 @@ export type CreateCrmStagePayload = {
   ordem: number;
   cor: string | null;
   tipo: CrmPipelineStageType;
+  setor: CrmStageSetor;
+  rolesPermitidas?: CrmStageRole[];
   slaHoras: number | null;
   ativa: boolean;
 };
@@ -200,6 +258,7 @@ export type CrmLeadFinancialProfilePayload = {
 export type CreateCrmLeadPayload = {
   nome: string;
   telefone: string;
+  assunto: CrmLeadAssunto;
   origem: string;
   email?: string | null;
   informacoesAdicionais?: string | null;

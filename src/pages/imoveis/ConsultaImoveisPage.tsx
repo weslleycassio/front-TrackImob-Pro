@@ -16,6 +16,7 @@ import { Toast } from '../../components/ui/Toast';
 import { APP_NAME } from '../../config/app';
 import {
   ativarImovel,
+  getImovelWhatsAppNotificationMessage,
   getImoveis,
   inativarImovel,
   type GetImoveisFilters,
@@ -217,8 +218,13 @@ export function ConsultaImoveisPage() {
     setIsInactivating(true);
 
     try {
-      await inativarImovel(selectedImovel.id, payload);
-      setSuccessMessage('Imovel inativado com sucesso.');
+      const inactivationResponse = await inativarImovel(selectedImovel.id, payload);
+      const whatsappNotificationMessage = getImovelWhatsAppNotificationMessage(inactivationResponse);
+      setSuccessMessage(
+        whatsappNotificationMessage
+          ? `Imovel inativado com sucesso. ${whatsappNotificationMessage}`
+          : 'Imovel inativado com sucesso.',
+      );
       setSelectedImovel(null);
 
       const currentPage = filters.page || DEFAULT_PAGE;

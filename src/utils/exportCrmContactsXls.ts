@@ -1,4 +1,4 @@
-import type { CrmLead } from '../types/crm';
+import { crmLeadAssuntoLabels, type CrmLead } from '../types/crm';
 
 type ExportCrmContactsXlsOptions = {
   searchTerm?: string;
@@ -98,6 +98,7 @@ export function exportCrmContactsXls(leads: CrmLead[], options: ExportCrmContact
     lead.nome,
     formatPhone(lead.telefone),
     lead.email ?? '-',
+    lead.assunto ? crmLeadAssuntoLabels[lead.assunto] : '-',
     lead.origem ?? '-',
     lead.pipeline?.nome ?? 'Pipeline nao informado',
     lead.stage?.nome ?? 'Etapa nao informada',
@@ -111,6 +112,7 @@ export function exportCrmContactsXls(leads: CrmLead[], options: ExportCrmContact
     'Nome',
     'Telefone',
     'E-mail',
+    'Assunto',
     'Origem',
     'Pipeline',
     'Etapa atual',

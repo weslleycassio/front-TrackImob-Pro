@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import type { CrmAssignableUser, CrmLead, CrmPipelineStage } from '../../../types/crm';
+import { crmLeadAssuntoOptions, type CrmAssignableUser, type CrmLead, type CrmPipelineStage } from '../../../types/crm';
 import { Button } from '../../ui/Button';
 import { Input } from '../../ui/Input';
 import { Modal } from '../../ui/Modal';
@@ -22,6 +22,7 @@ const leadEditSchema = z.object({
     .min(1, 'Informe o telefone do lead')
     .refine((value) => onlyDigits(value).length >= 10, 'Informe um telefone valido'),
   email: z.union([z.literal(''), z.string().trim().email('Informe um e-mail valido')]).optional(),
+  assunto: z.string().trim().min(1, 'Selecione o assunto do lead'),
   origem: z.string().trim().min(1, 'Informe a origem do lead'),
   stageId: z.string().min(1, 'Selecione uma etapa valida do funil'),
   entrada: optionalMoneyField,
@@ -96,6 +97,7 @@ function getInitialValues(lead: CrmLead): LeadEditFormValues {
     nome: lead.nome,
     telefone: formatPhone(lead.telefone ?? ''),
     email: lead.email ?? '',
+    assunto: lead.assunto ?? '',
     origem: lead.origem ?? '',
     stageId: String(lead.stageId),
     entrada: toNumberInputValue(lead.entrada),
@@ -147,6 +149,7 @@ export function LeadEditModal({
 
   useEffect(() => {
     register('telefone');
+    register('assunto');
     register('stageId');
     register('responsavelId');
     register('coResponsaveis');
@@ -173,6 +176,8 @@ export function LeadEditModal({
             ordem: lead.stage.ordem,
             cor: lead.stage.cor,
             tipo: lead.stage.tipo,
+            setor: lead.stage.setor,
+            rolesPermitidas: lead.stage.rolesPermitidas,
             ativa: lead.stage.ativa,
             slaHoras: null,
           },
@@ -282,7 +287,22 @@ export function LeadEditModal({
             <Input id="crm-edit-lead-origem" label="Origem" error={errors.origem?.message} {...register('origem')} />
           </div>
 
-          <div className="crm-form-grid">
+          <div className="crm-form-grid crm-form-grid--two">
+            <Select id="crm-edit-lead-assunto" label="Assunto" value={watch('assunto') ?? ''} error={errors.assunto?.message} onChange={(event) =>
+                setValue('assunto', event.target.value, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                  shouldValidate: true,
+                })
+              }>
+              <option value="">Selecione</option>
+              {crmLeadAssuntoOptions.map((option) => (
+                <option key={`edit-assunto-${option.value}`} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+
             <Select
               id="crm-edit-lead-stage"
               label="Etapa do funil"

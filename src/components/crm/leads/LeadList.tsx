@@ -1,5 +1,5 @@
 import type { EntityId } from '../../../api/types';
-import type { CrmLead } from '../../../types/crm';
+import { crmLeadAssuntoLabels, type CrmLead } from '../../../types/crm';
 import { Badge } from '../../ui/Badge';
 import {
   calculateAge,
@@ -40,6 +40,7 @@ export function LeadList({ leads, selectedLeadId, onSelectLead }: LeadListProps)
                   <p>{formatPhone(lead.telefone)}</p>
                 </div>
                 <div className="crm-leads-list__badges">
+                  {lead.assunto ? <Badge variant="neutral">{crmLeadAssuntoLabels[lead.assunto]}</Badge> : null}
                   <Badge variant="info">{lead.origem || 'Sem origem'}</Badge>
                   <Badge variant="neutral">{stageName}</Badge>
                 </div>

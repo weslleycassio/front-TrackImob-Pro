@@ -4,6 +4,7 @@ export {
   createImovelWithImages,
   deleteImovelImage,
   getDadosCaptacaoImovel,
+  getImovelWhatsAppNotificationMessage,
   extractImovelId,
   getImoveis,
   getInternalImovelById,

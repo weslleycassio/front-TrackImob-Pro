@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { EntityId } from '../../api/types';
-import type { CrmLead, CrmPipelineStage } from '../../types/crm';
+import { crmLeadAssuntoLabels, type CrmLead, type CrmPipelineStage } from '../../types/crm';
 import { normalizeHexColor, toRgba } from '../../utils/color';
 import {
   calculateAge,
@@ -190,7 +190,10 @@ export function LeadKanbanBoard({
                         <h4>{lead.nome}</h4>
                         <p>{formatPhone(lead.telefone)}</p>
                       </div>
-                      <Badge variant="info">{lead.origem || 'Sem origem'}</Badge>
+                      <div className="crm-leads-list__badges">
+                        {lead.assunto ? <Badge variant="neutral">{crmLeadAssuntoLabels[lead.assunto]}</Badge> : null}
+                        <Badge variant="info">{lead.origem || 'Sem origem'}</Badge>
+                      </div>
                     </div>
 
                     {hasStageDuration ? (

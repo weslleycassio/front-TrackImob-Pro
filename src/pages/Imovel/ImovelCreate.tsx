@@ -14,6 +14,7 @@ import {
   deleteImovelImage,
   extractImovelId,
   getInternalImovelById,
+  getImovelWhatsAppNotificationMessage,
   type FinalidadeImovel,
   type ImagemImovel,
   type InternalImovel,
@@ -797,8 +798,13 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
       }
 
       try {
-        await updateImovel(id, buildUpdatePayload(data, precoInput, canAlterarCorretorCaptador));
-        setSuccessMessage('Imovel atualizado com sucesso.');
+        const updateResponse = await updateImovel(id, buildUpdatePayload(data, precoInput, canAlterarCorretorCaptador));
+        const whatsappNotificationMessage = getImovelWhatsAppNotificationMessage(updateResponse);
+        setSuccessMessage(
+          whatsappNotificationMessage
+            ? `Imovel atualizado com sucesso. ${whatsappNotificationMessage}`
+            : 'Imovel atualizado com sucesso.',
+        );
         setIsSuccessModalOpen(true);
       } catch (error) {
         setGlobalError(toImovelActionError(error, 'Nao foi possivel atualizar o imovel. Verifique os dados e tente novamente.'));
@@ -841,10 +847,15 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
 
       const createdImovel = await createImovel(payload);
       const imovelId = extractImovelId(createdImovel);
+      const whatsappNotificationMessage = getImovelWhatsAppNotificationMessage(createdImovel);
 
       if (!selectedImageFiles.length) {
         setUploadProgress(100);
-        setSuccessMessage('Imovel cadastrado com sucesso. Voce pode adicionar imagens depois.');
+        setSuccessMessage(
+          whatsappNotificationMessage
+            ? `Imovel cadastrado com sucesso. ${whatsappNotificationMessage}`
+            : 'Imovel cadastrado com sucesso. Voce pode adicionar imagens depois.',
+        );
         clearForm();
         setIsSuccessModalOpen(true);
         return;
@@ -858,10 +869,18 @@ function ImovelFormPage({ mode }: { mode: ImovelFormMode }) {
         setUploadProgress(1);
         await uploadImovelImages(imovelId, selectedImageFiles, (progress) => setUploadProgress(progress));
         setUploadProgress(100);
-        setSuccessMessage('Imovel e imagens cadastrados com sucesso.');
+        setSuccessMessage(
+          whatsappNotificationMessage
+            ? `Imovel e imagens cadastrados com sucesso. ${whatsappNotificationMessage}`
+            : 'Imovel e imagens cadastrados com sucesso.',
+        );
       } catch {
         setUploadProgress(0);
-        setSuccessMessage('Imovel cadastrado com sucesso, mas houve falha no upload das imagens.');
+        setSuccessMessage(
+          whatsappNotificationMessage
+            ? `Imovel cadastrado com sucesso, mas houve falha no upload das imagens. ${whatsappNotificationMessage}`
+            : 'Imovel cadastrado com sucesso, mas houve falha no upload das imagens.',
+        );
       }
 
       clearForm();

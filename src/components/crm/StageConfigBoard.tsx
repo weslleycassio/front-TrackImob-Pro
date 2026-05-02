@@ -1,4 +1,4 @@
-import { crmStageTypeLabels, type CrmPipelineStage } from '../../types/crm';
+import { crmStageRoleLabels, crmStageSetorLabels, crmStageTypeLabels, type CrmPipelineStage } from '../../types/crm';
 import { getContrastTextColor, normalizeHexColor, toRgba } from '../../utils/color';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -50,6 +50,10 @@ export function StageConfigBoard({
         const stageColor = normalizeHexColor(stage.cor, '#94A3B8');
         const stageColorText = getContrastTextColor(stageColor);
         const orderLabel = getOrderLabel(stage, index);
+        const rolesLabel =
+          stage.rolesPermitidas.length > 0
+            ? stage.rolesPermitidas.map((role) => crmStageRoleLabels[role]).join(', ')
+            : 'Sem restricao';
 
         return (
           <article
@@ -89,6 +93,14 @@ export function StageConfigBoard({
               <div>
                 <span>SLA</span>
                 <strong>{stage.slaHoras !== null ? `${stage.slaHoras}h` : 'Nao definido'}</strong>
+              </div>
+              <div>
+                <span>Setor</span>
+                <strong>{stage.setor ? crmStageSetorLabels[stage.setor] : 'Nao informado'}</strong>
+              </div>
+              <div>
+                <span>Roles</span>
+                <strong>{rolesLabel}</strong>
               </div>
             </div>
 

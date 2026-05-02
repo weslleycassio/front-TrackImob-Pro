@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { BookUser, Building2, LayoutDashboard, LogOut, Users, Workflow } from 'lucide-react';
+import { BookUser, Building2, LayoutDashboard, LogOut, ShieldCheck, Smartphone, Users, Workflow } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import type { UserRole } from '../api/types';
 import { useAuth } from '../auth/useAuth';
 import { Skeleton } from './ui/Skeleton';
 
@@ -20,8 +21,20 @@ type NavItem = {
   icon: ReactNode;
 };
 
-function getNavItems(isAdmin: boolean): NavItem[] {
-  return [
+function getNavItems(userRole?: UserRole): NavItem[] {
+  if (userRole === 'SUPER_ADMIN') {
+    return [
+      {
+        label: 'Configs admin',
+        to: '/configs-admin',
+        description: 'Imobiliarias, limites e governanca',
+        icon: <ShieldCheck size={20} aria-hidden="true" />,
+      },
+    ];
+  }
+
+  const isAdmin = userRole === 'ADMIN';
+  const items: NavItem[] = [
     {
       label: 'Dashboard',
       to: '/app',
@@ -53,6 +66,17 @@ function getNavItems(isAdmin: boolean): NavItem[] {
       icon: <Users size={20} aria-hidden="true" />,
     },
   ];
+
+  if (isAdmin) {
+    items.splice(4, 0, {
+      label: 'WhatsApp',
+      to: '/configuracoes/whatsapp',
+      description: 'Conexao, QR e grupos',
+      icon: <Smartphone size={20} aria-hidden="true" />,
+    });
+  }
+
+  return items;
 }
 
 const getNavClassName = ({ isActive }: { isActive: boolean }) =>
@@ -84,7 +108,8 @@ export function AppSidebar({
   const [logoFailed, setLogoFailed] = useState(false);
   const companyInitials = useMemo(() => getCompanyInitials(companyName), [companyName]);
   const shouldShowLogo = Boolean(companyLogoUrl && !logoFailed);
-  const navItems = useMemo(() => getNavItems(user?.role === 'ADMIN'), [user?.role]);
+  const navItems = useMemo(() => getNavItems(user?.role), [user?.role]);
+  const brandSubtitle = user?.role === 'SUPER_ADMIN' ? 'Governanca global' : 'Gestao imobiliaria';
 
   useEffect(() => {
     setLogoFailed(false);
@@ -121,7 +146,7 @@ export function AppSidebar({
 
               <div className="app-sidebar__brand-copy">
                 <strong title={companyName ?? 'Imobiliaria'}>{companyName ?? 'Imobiliaria'}</strong>
-                <span>Gestao imobiliaria</span>
+                <span>{brandSubtitle}</span>
               </div>
             </>
           )}

@@ -29,7 +29,16 @@ function toEntityId(value: unknown): string | number | null {
 
 function normalizeRole(value: unknown): User['role'] {
   const rawRole = String(Array.isArray(value) ? value[0] : value ?? '').toUpperCase();
-  return rawRole === 'ADMIN' ? 'ADMIN' : 'CORRETOR';
+
+  if (rawRole === 'SUPER_ADMIN') {
+    return 'SUPER_ADMIN';
+  }
+
+  if (rawRole === 'ADMIN') {
+    return 'ADMIN';
+  }
+
+  return 'CORRETOR';
 }
 
 function toUser(candidate: unknown, fallbackEmail: string): User | null {
@@ -48,8 +57,9 @@ function toUser(candidate: unknown, fallbackEmail: string): User | null {
     toEntityId(record.imobiliaria_id) ??
     toEntityId(record.realEstateId) ??
     toEntityId(record.companyId);
+  const role = normalizeRole(record.role ?? record.roles ?? record.perfil ?? record.userRole);
 
-  if (!userId || !imobiliariaId) {
+  if (!userId || (!imobiliariaId && role !== 'SUPER_ADMIN')) {
     return null;
   }
 
@@ -58,8 +68,8 @@ function toUser(candidate: unknown, fallbackEmail: string): User | null {
     nome: String(record.nome ?? record.name ?? record.username ?? 'Usuário'),
     telefone: String(record.telefone ?? record.phone ?? record.celular ?? ''),
     email: String(record.email ?? record.userEmail ?? fallbackEmail),
-    role: normalizeRole(record.role ?? record.roles ?? record.perfil ?? record.userRole),
-    imobiliariaId,
+    role,
+    imobiliariaId: imobiliariaId ?? undefined,
     imobiliariaNome:
       typeof record.imobiliariaNome === 'string'
         ? record.imobiliariaNome
@@ -96,12 +106,11 @@ function getUserFromToken(token: string, email: string): User | null {
     toEntityId(payload.imobiliariaId) ??
     toEntityId(payload.realEstateId) ??
     toEntityId(payload.companyId);
+  const role = normalizeRole(payload.role ?? payload.roles ?? payload.perfil ?? payload.userRole);
 
-  if (!userId || !imobiliariaId) {
+  if (!userId || (!imobiliariaId && role !== 'SUPER_ADMIN')) {
     return null;
   }
-
-  const role = normalizeRole(payload.role ?? payload.roles ?? payload.perfil ?? payload.userRole);
 
   return {
     id: userId,
@@ -109,7 +118,7 @@ function getUserFromToken(token: string, email: string): User | null {
     telefone: String(payload.telefone ?? payload.phone ?? ''),
     email: String(payload.email ?? payload.userEmail ?? email),
     role,
-    imobiliariaId,
+    imobiliariaId: imobiliariaId ?? undefined,
     imobiliariaNome: typeof payload.imobiliariaNome === 'string' ? payload.imobiliariaNome : undefined,
   };
 }

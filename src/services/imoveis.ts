@@ -87,12 +87,65 @@ type CreateImovelResponse = {
     imovel?: {
       id?: string | number;
     };
+    whatsappNotification?: ImovelWhatsAppNotificationInfo;
   };
   id?: string | number;
   imovel?: {
     id?: string | number;
   };
+  whatsappNotification?: ImovelWhatsAppNotificationInfo;
+  notification?: ImovelWhatsAppNotificationInfo;
 };
+
+type ImovelWhatsAppNotificationInfo = {
+  willSend?: boolean;
+  queued?: boolean;
+  shouldSend?: boolean;
+  groupConfigured?: boolean;
+  groupEnabled?: boolean;
+  message?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function extractWhatsAppNotificationInfo(response: unknown): ImovelWhatsAppNotificationInfo | null {
+  if (!isRecord(response)) {
+    return null;
+  }
+
+  const data = isRecord(response.data) ? response.data : {};
+  const candidates = [
+    response.whatsappNotification,
+    response.notification,
+    response.whatsapp,
+    data.whatsappNotification,
+    data.notification,
+    data.whatsapp,
+  ];
+
+  const notification = candidates.find(isRecord);
+  return notification ? (notification as ImovelWhatsAppNotificationInfo) : null;
+}
+
+export function getImovelWhatsAppNotificationMessage(response: unknown) {
+  const notification = extractWhatsAppNotificationInfo(response);
+
+  if (!notification) {
+    return null;
+  }
+
+  if (typeof notification.message === 'string' && notification.message.trim().length > 0) {
+    return notification.message.trim();
+  }
+
+  if (notification.willSend || notification.queued || notification.shouldSend) {
+    return 'Notificacao sera enviada ao grupo configurado.';
+  }
+
+  return null;
+}
 
 export type PublicImovel = {
   id: string | number;

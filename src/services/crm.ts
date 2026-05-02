@@ -2,7 +2,13 @@ import axios from 'axios';
 import { apiClient } from '../api/client';
 import { crmEndpoints } from '../api/endpoints/crm';
 import type { EntityId, UserRole } from '../api/types';
-import type {
+import {
+  crmLeadAssuntoOptions,
+  crmStageRoleOptions,
+  crmStageSetorOptions,
+  type CrmLeadAssunto,
+  type CrmStageRole,
+  type CrmStageSetor,
   CrmAssignableUser,
   CrmContact,
   CrmContactLeadSummary,
@@ -33,6 +39,9 @@ import type {
 type UnknownRecord = Record<string, unknown>;
 
 const stageTypes: CrmPipelineStageType[] = ['FRIO', 'QUENTE', 'PERDIDO', 'CONCLUIDO_COM_SUCESSO'];
+const leadAssuntos: CrmLeadAssunto[] = crmLeadAssuntoOptions.map((option) => option.value);
+const stageSetores: CrmStageSetor[] = crmStageSetorOptions.map((option) => option.value);
+const stageRoles: CrmStageRole[] = crmStageRoleOptions.map((option) => option.value);
 const userRoles: UserRole[] = ['ADMIN', 'CORRETOR'];
 const legacyStageTypeMap: Record<string, CrmPipelineStageType> = {
   OPEN: 'FRIO',
@@ -111,6 +120,65 @@ function toStageType(value: unknown): CrmPipelineStageType {
   return 'FRIO';
 }
 
+function toLeadAssunto(value: unknown): CrmLeadAssunto | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalizedValue = value.trim().toUpperCase();
+
+  if (leadAssuntos.includes(normalizedValue as CrmLeadAssunto)) {
+    return normalizedValue as CrmLeadAssunto;
+  }
+
+  return null;
+}
+
+function toStageSetor(value: unknown): CrmStageSetor | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalizedValue = value.trim().toUpperCase();
+
+  if (stageSetores.includes(normalizedValue as CrmStageSetor)) {
+    return normalizedValue as CrmStageSetor;
+  }
+
+  return null;
+}
+
+function toStageRole(value: unknown): CrmStageRole | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalizedValue = value.trim().toUpperCase();
+
+  if (stageRoles.includes(normalizedValue as CrmStageRole)) {
+    return normalizedValue as CrmStageRole;
+  }
+
+  return null;
+}
+
+function normalizeStageRoles(value: unknown) {
+  const rawRoles = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(',')
+      : [];
+
+  return Array.from(
+    new Set(
+      rawRoles
+        .map((item) => (isRecord(item) ? item.role ?? item.nome ?? item.value : item))
+        .map((item) => toStageRole(item))
+        .filter((role): role is CrmStageRole => role !== null),
+    ),
+  );
+}
+
 function toUserRole(value: unknown) {
   if (userRoles.includes(value as UserRole)) {
     return value as UserRole;
@@ -177,6 +245,8 @@ function normalizeStage(raw: unknown): CrmPipelineStage {
     ordem: toRequiredNumber(stage.ordem),
     cor: toNullableString(stage.cor),
     tipo: toStageType(stage.tipo),
+    setor: toStageSetor(stage.setor ?? stage.area ?? stage.departamento),
+    rolesPermitidas: normalizeStageRoles(stage.rolesPermitidas ?? stage.allowedRoles ?? stage.perfisPermitidos ?? stage.roles),
     slaHoras: toOptionalNumber(stage.slaHoras),
     ativa: toBooleanValue(stage.ativa, true),
     createdAt: toOptionalDate(stage.createdAt),
@@ -217,6 +287,8 @@ function normalizeLeadStageSummary(raw: unknown): CrmLeadStageSummary | null {
     ordem: toRequiredNumber(raw.ordem),
     cor: toNullableString(raw.cor),
     tipo: toStageType(raw.tipo),
+    setor: toStageSetor(raw.setor ?? raw.area ?? raw.departamento),
+    rolesPermitidas: normalizeStageRoles(raw.rolesPermitidas ?? raw.allowedRoles ?? raw.perfisPermitidos ?? raw.roles),
     ativa: toBooleanValue(raw.ativa ?? raw.ativaNoPipeline, true),
   };
 }
@@ -415,6 +487,7 @@ function normalizeLead(raw: unknown): CrmLead {
     nome: toStringValue(lead.nome ?? lead.name ?? lead.titulo),
     telefone: toNullableString(lead.telefone ?? lead.phone ?? lead.celular),
     email: toNullableString(lead.email),
+    assunto: toLeadAssunto(lead.assunto ?? lead.subject ?? lead.finalidade ?? lead.topico),
     origem: toNullableString(lead.origem ?? lead.source ?? lead.origemLead),
     informacoesAdicionais: toNullableString(
       lead.informacoesAdicionais ?? lead.observacoes ?? lead.observacao ?? lead.descricao ?? lead.notes ?? lead.note,
@@ -463,6 +536,7 @@ function normalizeContactLeadSummary(raw: unknown): CrmContactLeadSummary | null
     nome: toStringValue(raw.nome ?? raw.name ?? raw.titulo),
     telefone: toNullableString(raw.telefone ?? raw.phone ?? raw.celular),
     email: toNullableString(raw.email),
+    assunto: toLeadAssunto(raw.assunto ?? raw.subject ?? raw.finalidade ?? raw.topico),
     origem: toNullableString(raw.origem ?? raw.source ?? raw.origemLead),
     pipeline: normalizeLeadPipelineSummary(raw.pipeline),
     stage: normalizeLeadStageSummary(raw.stage),
@@ -537,6 +611,14 @@ function sanitizeStagePayload(payload: CreateCrmStagePayload | UpdateCrmStagePay
     body.tipo = payload.tipo;
   }
 
+  if (payload.setor !== undefined) {
+    body.setor = payload.setor;
+  }
+
+  if (payload.rolesPermitidas !== undefined) {
+    body.rolesPermitidas = Array.from(new Set(payload.rolesPermitidas));
+  }
+
   if (payload.slaHoras !== undefined) {
     body.slaHoras = payload.slaHoras;
   }
@@ -561,6 +643,10 @@ function sanitizeLeadPayload(payload: CreateCrmLeadPayload | UpdateCrmLeadPayloa
 
   if (payload.email !== undefined) {
     body.email = typeof payload.email === 'string' ? payload.email.trim() : payload.email;
+  }
+
+  if (payload.assunto !== undefined) {
+    body.assunto = payload.assunto;
   }
 
   if (payload.origem !== undefined) {

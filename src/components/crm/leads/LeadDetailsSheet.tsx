@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { EntityId } from '../../../api/types';
-import { crmStageTypeLabels, type CrmLead, type CrmPipelineStage } from '../../../types/crm';
+import {
+  crmLeadAssuntoLabels,
+  crmStageRoleLabels,
+  crmStageSetorLabels,
+  crmStageTypeLabels,
+  type CrmLead,
+  type CrmPipelineStage,
+} from '../../../types/crm';
 import { normalizeHexColor, toRgba } from '../../../utils/color';
 import { Badge } from '../../ui/Badge';
 import { Button } from '../../ui/Button';
@@ -53,6 +60,16 @@ function formatDate(value?: string | null) {
 
 function toStageOptionLabel(stage: CrmPipelineStage) {
   return stage.ativa ? stage.nome : `${stage.nome} - Inativa`;
+}
+
+function formatStageRoles(roles: string[]) {
+  if (roles.length === 0) {
+    return 'Sem restricao cadastrada';
+  }
+
+  return roles
+    .map((role) => crmStageRoleLabels[role as keyof typeof crmStageRoleLabels] ?? role)
+    .join(', ');
 }
 
 export function LeadDetailsSheet({
@@ -126,6 +143,8 @@ export function LeadDetailsSheet({
       ordem: lead.stage.ordem,
       cor: lead.stage.cor,
       tipo: lead.stage.tipo,
+      setor: lead.stage.setor,
+      rolesPermitidas: lead.stage.rolesPermitidas,
       ativa: lead.stage.ativa,
       slaHoras: null,
     };
@@ -215,6 +234,7 @@ export function LeadDetailsSheet({
               <h3>Identificacao do lead</h3>
               <div className="crm-lead-details__headline">
                 <div className="crm-lead-details__headline-copy">
+                  {lead.assunto ? <Badge variant="neutral">{crmLeadAssuntoLabels[lead.assunto]}</Badge> : null}
                   <Badge variant="info">{lead.origem || 'Sem origem'}</Badge>
                   <span>{lead.pipeline?.nome ?? 'Pipeline nao informado'}</span>
                 </div>
@@ -232,6 +252,10 @@ export function LeadDetailsSheet({
                 <div>
                   <dt>Origem</dt>
                   <dd>{lead.origem || 'Nao informada'}</dd>
+                </div>
+                <div>
+                  <dt>Assunto</dt>
+                  <dd>{lead.assunto ? crmLeadAssuntoLabels[lead.assunto] : 'Nao informado'}</dd>
                 </div>
               </dl>
             </section>
@@ -279,6 +303,20 @@ export function LeadDetailsSheet({
                         ? crmStageTypeLabels[lead.stage.tipo]
                         : 'Nao informado'}
                   </dd>
+                </div>
+                <div>
+                  <dt>Setor da coluna</dt>
+                  <dd>
+                    {currentStage?.setor
+                      ? crmStageSetorLabels[currentStage.setor]
+                      : lead.stage?.setor
+                        ? crmStageSetorLabels[lead.stage.setor]
+                        : 'Nao informado'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Roles permitidas</dt>
+                  <dd>{formatStageRoles(currentStage?.rolesPermitidas ?? lead.stage?.rolesPermitidas ?? [])}</dd>
                 </div>
                 <div>
                   <dt>Entrou nesta coluna</dt>
